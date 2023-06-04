@@ -4,7 +4,7 @@ const path = require('path');
 const webpack = require('webpack');
 const AssetsPlugin = require('assets-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const SentryWebpackPlugin = require('@sentry/webpack-plugin');
+const { sentryWebpackPlugin } = require('@sentry/webpack-plugin');
 const ReactRefreshPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
 
 const Version = require('./public/version.json');
@@ -17,7 +17,7 @@ const useHMR = !!global.HMR; // Hot Module Replacement (HMR)
 const config = {
   context: __dirname,
   entry: [
-    '@fontsource/open-sans/latin.css',
+    '@fontsource/sora/latin.css',
     './css/main.scss',
     isDebug ? './src/main-hmr.tsx' : './src/main.tsx',
   ],
@@ -35,6 +35,9 @@ const config = {
   },
   devtool: isDebug || process.env.SENTRY_AUTH_TOKEN ? 'source-map' : false,
   resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
   },
   stats: {
@@ -167,7 +170,7 @@ if (!isDebug) {
     },
   };
   if (process.env.SENTRY_AUTH_TOKEN) {
-    config.plugins.push(new SentryWebpackPlugin({
+    config.plugins.push(sentryWebpackPlugin({
       authToken: process.env.SENTRY_AUTH_TOKEN,
       org: 'shoko-anime',
       project: 'shoko-webui',
