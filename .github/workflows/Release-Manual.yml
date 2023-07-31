@@ -50,10 +50,10 @@ jobs:
           ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
 
-      - name: Setup Node.js v16
+      - name: Setup Node.js v18
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
 
       - name: Install dependencies
         run: yarn install
@@ -82,8 +82,9 @@ jobs:
 #          file_pattern: package.json
 #          skip_fetch: true
 
-      - name: Rename build zip
-        run: mv ./build/latest.zip ./build/Shoko-WebUI-v${{ github.event.inputs.version }}.zip
+      - name: Create build.zip
+        run: zip -r ../build/Shoko-WebUI-v${{ github.event.inputs.version }}.zip ./* -x "**/index*.js.map"
+        working-directory: ./dist
 
       - name: Create Release
         uses: softprops/action-gh-release@v1

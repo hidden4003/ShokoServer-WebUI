@@ -9,6 +9,7 @@ export type EpisodeType = {
   Size: number;
   AniDB?: EpisodeAniDBType;
   TvDB?:EpisodeTvDBType[];
+  IsHidden: boolean;
 };
 
 export type EpisodeIDsType = {
@@ -43,6 +44,7 @@ export type EpisodeAniDBType = {
   Type: EpisodeTypeEnum;
   EpisodeNumber: number;
   AirDate: string | null;
+  Title: string;
   Titles: EpisodeTitleType[];
   Description: string;
   Rating: RatingType;
@@ -57,7 +59,7 @@ export type EpisodeTvDBType = {
   Description: string;
   AirDate: string | null;
   AirsAfterSeason: number | null;
-  AirsBeforeSeason:  number | null;
+  AirsBeforeSeason: number | null;
   AirsBeforeEpisode: number | null;
   Rating: RatingType | null;
   Thumbnail: ImageType;

@@ -1,6 +1,4 @@
 import { combineReducers } from '@reduxjs/toolkit';
-import { handleAction } from 'redux-actions';
-import { SET_AUTOUPDATE } from './actions';
 
 import apiSessionReducer from './slices/apiSession';
 import fetchingReducer from './slices/fetching';
@@ -17,8 +15,6 @@ import { splitApi } from './rtkQuery/splitApi';
 import { splitV3Api } from './rtkQuery/splitV3Api';
 import { plexApi } from './rtkQuery/plexApi';
 
-const autoUpdate = handleAction(SET_AUTOUPDATE, (state, action) => action.payload, false);
-
 const reducers = combineReducers({
   apiSession: apiSessionReducer,
   fetching: fetchingReducer,
@@ -26,7 +22,6 @@ const reducers = combineReducers({
   mainpage: mainpageReducer,
   misc: miscReducer,
   modals: modalsReducer,
-  autoUpdate,
   collection: collectionReducer,
   utilities: utilitiesReducer,
   [externalApi.reducerPath]: externalApi.reducer,

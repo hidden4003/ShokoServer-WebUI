@@ -3,13 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { find } from 'lodash';
 import { mdiFolderOpen } from '@mdi/js';
 
-import toast from '../Toast';
 import { RootState } from '@/core/store';
-import Button from '../Input/Button';
-import Input from '../Input/Input';
-import Select from '../Input/Select';
-import ModalPanel from '../Panels/ModalPanel';
-import BrowseFolderModal from './BrowseFolderModal';
 import { setStatus } from '@/core/slices/modals/importFolder';
 import { setStatus as setBrowseStatus } from '@/core/slices/modals/browseFolder';
 import {
@@ -19,6 +13,12 @@ import {
   useUpdateImportFolderMutation,
 } from '@/core/rtkQuery/splitV3Api/importFolderApi';
 import { ImportFolderType } from '@/core/types/api/import-folder';
+import toast from '../Toast';
+import Button from '../Input/Button';
+import Input from '../Input/Input';
+import Select from '../Input/Select';
+import ModalPanel from '../Panels/ModalPanel';
+import BrowseFolderModal from './BrowseFolderModal';
 
 const defaultImportFolder = {
   WatchForNewFiles: false,
@@ -60,7 +60,7 @@ function ImportFolderModal() {
   const handleBrowse = () => dispatch(setBrowseStatus(true));
   const handleClose = () => dispatch(setStatus(false));
   const handleDelete = async () => {
-    //TODO: can this be better typed?
+    // TODO: can this be better typed?
     const result: any = await deleteFolder({ folderId: ID });
     if (!result.error) {
       toast.success('Import folder deleted!');
@@ -69,7 +69,7 @@ function ImportFolderModal() {
   };
 
   const handleSave = async () => {
-    //TODO: can this be better typed?
+    // TODO: can this be better typed?
     let result;
     if (edit) {
       result = await updateFolder(importFolder);
@@ -99,7 +99,7 @@ function ImportFolderModal() {
       >
         <div className="font-semibold text-xl">{edit ? 'Edit Import Folder' : 'Add New Import Folder'}</div>
         <Input id="Name" value={importFolder.Name} label="Name" type="text" placeholder="Folder name" onChange={handleInputChange} className="w-full" />
-        <Input id="Path" value={importFolder.Path} label="Location" type="text" placeholder="Location" onChange={handleInputChange} className="w-full" endIcon={mdiFolderOpen} endIconClick={handleBrowse}/>
+        <Input id="Path" value={importFolder.Path} label="Location" type="text" placeholder="Location" onChange={handleInputChange} className="w-full" endIcon={mdiFolderOpen} endIconClick={handleBrowse} />
         <Select label="Drop Type" id="DropFolderType" value={importFolder.DropFolderType} onChange={handleInputChange} className="w-full">
           <option value={0}>None</option>
           <option value={1}>Source</option>
@@ -112,10 +112,10 @@ function ImportFolderModal() {
         </Select>
         <div className="flex justify-end gap-x-3 font-semibold">
           {edit && (
-            <Button onClick={handleDelete} className="bg-background-nav px-6 py-2 text-font-main">Delete</Button>
+            <Button onClick={handleDelete} buttonType="danger" className="px-6 py-2">Delete</Button>
           )}
-          <Button onClick={handleClose} className="bg-background-nav px-6 py-2 text-font-main">Cancel</Button>
-          <Button onClick={handleSave} className="bg-highlight-1 px-6 py-2" disabled={importFolder.Name === '' || importFolder.Path === '' || isLoading}>Save</Button>
+          <Button onClick={handleClose} buttonType="secondary" className="px-6 py-2">Cancel</Button>
+          <Button onClick={handleSave} buttonType="primary" className="px-6 py-2 " disabled={importFolder.Name === '' || importFolder.Path === '' || isLoading}>Save</Button>
         </div>
       </ModalPanel>
       <BrowseFolderModal onSelect={onFolderSelect} />

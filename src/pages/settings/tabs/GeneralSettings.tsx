@@ -1,20 +1,17 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React, { useMemo } from 'react';
-import { useDispatch } from 'react-redux';
 import cx from 'classnames';
 import { Icon } from '@mdi/react';
 import { mdiRefresh } from '@mdi/js';
 
 import { uiVersion } from '@/core/util';
 
-import { useSettingsContext } from '../SettingsPage';
-
 import { useGetInitVersionQuery } from '@/core/rtkQuery/splitV3Api/initApi';
 import SelectSmall from '@/components/Input/SelectSmall';
 import Checkbox from '@/components/Input/Checkbox';
 import Button from '@/components/Input/Button';
-import { splitV3Api } from '@/core/rtkQuery/splitV3Api';
-import { useGetWebuiThemesQuery } from '@/core/rtkQuery/splitV3Api/webuiApi';
+import { useGetWebuiThemesQuery, useLazyGetWebuiUpdateCheckQuery } from '@/core/rtkQuery/splitV3Api/webuiApi';
+import { useSettingsContext } from '../SettingsPage';
 
 const UI_VERSION = uiVersion();
 
@@ -78,8 +75,6 @@ const exclusionMapping = {
 };
 
 function GeneralSettings() {
-  const dispatch = useDispatch();
-
   const { newSettings, setNewSettings, updateSetting } = useSettingsContext();
 
   const {
@@ -88,13 +83,13 @@ function GeneralSettings() {
     LogRotator, WebUI_Settings, TraceLog,
   } = newSettings;
 
+  const [webuiUpdateCheck, webuiUpdateCheckResult] = useLazyGetWebuiUpdateCheckQuery();
   const version = useGetInitVersionQuery();
   const themes = useGetWebuiThemesQuery();
 
-  const currentTheme = useMemo(() => {
-    if (!themes.data) return;
-    return themes.data.find(theme => `theme-${theme.ID}` === WebUI_Settings.theme);
-  }, [themes.requestId, themes.isSuccess, WebUI_Settings.theme]);
+  const currentTheme = useMemo(() => (
+    themes.data?.find(theme => `theme-${theme.ID}` === WebUI_Settings.theme)
+  ), [themes, WebUI_Settings.theme]);
 
   const handleExclusionChange = (event: any) => {
     const { id, checked } = event.target;
@@ -110,12 +105,15 @@ function GeneralSettings() {
 
   return (
     <>
-      <div className='font-semibold text-xl'>General</div>
+      <div className="font-semibold text-xl">General</div>
       <div className="flex flex-col mt-0.5 gap-y-4">
         <div className="flex justify-between">
           <div className="font-semibold">Version Information</div>
-          <Button onClick={() => dispatch(splitV3Api.util.invalidateTags(['WebUIUpdateCheck']))} tooltip="Check for WebUI Update">
-            <Icon path={mdiRefresh} size={1} className="text-highlight-1" />
+          <Button
+            onClick={() => webuiUpdateCheck({ channel: newSettings.WebUI_Settings.updateChannel, force: true })}
+            tooltip="Check for WebUI Update"
+          >
+            <Icon path={mdiRefresh} size={1} className="text-panel-primary" spin={webuiUpdateCheckResult.isFetching} />
           </Button>
         </div>
         <div className="flex flex-col gap-y-1">
@@ -203,7 +201,7 @@ function GeneralSettings() {
           <Checkbox justify label="Auto Group Series" id="auto-group-series" isChecked={AutoGroupSeries} onChange={event => setNewSettings({ ...newSettings, AutoGroupSeries: event.target.checked })} />
           <Checkbox justify label="Determine Main Series Using Relation Weighing" id="auto-group-using-score" isChecked={AutoGroupSeriesUseScoreAlgorithm} onChange={event => setNewSettings({ ...newSettings, AutoGroupSeriesUseScoreAlgorithm: event.target.checked })} />
           Exclude following relations
-          <div className="flex flex-col bg-background-border border border-background-border rounded-md px-3 py-2 gap-y-1.5">
+          <div className="flex flex-col bg-panel-background-alt border border-panel-border rounded-md px-3 py-2 gap-y-1.5">
             {Object.keys(exclusionMapping).map(item => (
               <Checkbox justify label={exclusionMapping[item].name} id={item} isChecked={AutoGroupSeriesRelationExclusions.includes(exclusionMapping[item].id)} onChange={handleExclusionChange} key={item} />
             ))}

@@ -3,9 +3,9 @@
         "outDir": "./dist/",
         "sourceMap": true,
         "strictNullChecks": true,
-        "module": "es6",
+        "module": "es2022",
         "jsx": "react",
-        "target": "es5",
+        "target": "esnext",
         "allowJs": true,
         "checkJs": false,
         "moduleResolution": "node",
@@ -19,9 +19,7 @@
         }
     },
     "include": [
-        "./src/",
-        "./run.js",
-        "./webpack.config.default.js"
+        "./src/"
     ],
     "exclude": [
         "./node_modules"

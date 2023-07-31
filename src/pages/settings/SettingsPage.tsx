@@ -30,43 +30,109 @@ const items = [
 const initialLayout = {
   dashboard: {
     lg: [
-      { i: 'queueProcessor', x: 0, y: 0, w: 6, h: 14, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'importBreakdown', x: 6, y: 0, w: 6, h: 14, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'recentlyImported', x: 0, y: 16, w: 12, h: 18, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'collectionBreakdown', x: 0, y: 37, w: 3, h: 15, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'collectionTypeBreakdown', x: 3, y: 37, w: 3, h: 15, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'importFolders', x: 6, y: 37, w: 3, h: 15, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'shokoNews', x: 9, y: 37, w: 3, h: 15, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'continueWatching', x: 0, y: 53, w: 12, h: 18, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'nextUp', x: 0, y: 67, w: 12, h: 18, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'upcomingAnime', x: 0, y: 81, w: 12, h: 20, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'recommendedAnime', x: 0, y: 103, w: 12, h: 18, minW: 2, minH: 2, moved: false, static: false },
+      {
+        i: 'queueProcessor', x: 0, y: 0, w: 6, h: 14, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'importBreakdown', x: 6, y: 0, w: 6, h: 14, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'recentlyImported', x: 0, y: 16, w: 12, h: 18, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'collectionBreakdown', x: 0, y: 37, w: 3, h: 15, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'collectionTypeBreakdown', x: 3, y: 37, w: 3, h: 15, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'importFolders', x: 6, y: 37, w: 3, h: 15, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'shokoNews', x: 9, y: 37, w: 3, h: 15, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'continueWatching', x: 0, y: 53, w: 12, h: 18, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'nextUp', x: 0, y: 67, w: 12, h: 18, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'upcomingAnime', x: 0, y: 81, w: 12, h: 20, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'recommendedAnime', x: 0, y: 103, w: 12, h: 18, minW: 2, minH: 2, moved: false, static: false,
+      },
     ],
     md: [
-      { i: 'collectionBreakdown', x: 0, y: 0, w: 5, h: 16, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'collectionTypeBreakdown', x: 5, y: 0, w: 5, h: 16, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'queueProcessor', x: 0, y: 16, w: 10, h: 16, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'recentlyImported', x: 0, y: 32, w: 10, h: 19, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'shokoNews', x: 0, y: 51, w: 5, h: 14, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'importFolders', x: 5, y: 51, w: 5, h: 14, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'importBreakdown', x: 0, y: 65, w: 10, h: 14, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'continueWatching', x: 0, y: 79, w: 10, h: 19, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'nextUp', x: 0, y: 98, w: 10, h: 19, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'upcomingAnime', x: 0, y: 117, w: 10, h: 21, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'recommendedAnime', x: 0, y: 138, w: 10, h: 19, minW: 2, minH: 2, moved: false, static: false },
+      {
+        i: 'collectionBreakdown', x: 0, y: 0, w: 5, h: 16, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'collectionTypeBreakdown', x: 5, y: 0, w: 5, h: 16, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'queueProcessor', x: 0, y: 16, w: 10, h: 16, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'recentlyImported', x: 0, y: 32, w: 10, h: 19, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'shokoNews', x: 0, y: 51, w: 5, h: 14, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'importFolders', x: 5, y: 51, w: 5, h: 14, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'importBreakdown', x: 0, y: 65, w: 10, h: 14, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'continueWatching', x: 0, y: 79, w: 10, h: 19, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'nextUp', x: 0, y: 98, w: 10, h: 19, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'upcomingAnime', x: 0, y: 117, w: 10, h: 21, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'recommendedAnime', x: 0, y: 138, w: 10, h: 19, minW: 2, minH: 2, moved: false, static: false,
+      },
     ],
     sm: [
-      { i: 'collectionBreakdown', x: 0, y: 0, w: 6, h: 16, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'collectionTypeBreakdown', x: 0, y: 16, w: 6, h: 16, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'queueProcessor', x: 0, y: 32, w: 6, h: 16, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'recentlyImported', x: 0, y: 48, w: 6, h: 19, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'shokoNews', x: 0, y: 67, w: 6, h: 14, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'importFolders', x: 0, y: 81, w: 6, h: 14, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'importBreakdown', x: 0, y: 95, w: 6, h: 14, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'continueWatching', x: 0, y: 109, w: 6, h: 19, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'nextUp', x: 0, y: 128, w: 6, h: 19, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'upcomingAnime', x: 0, y: 147, w: 6, h: 21, minW: 2, minH: 2, moved: false, static: false },
-      { i: 'recommendedAnime', x: 0, y: 168, w: 6, h: 19, minW: 2, minH: 2, moved: false, static: false },
+      {
+        i: 'collectionBreakdown', x: 0, y: 0, w: 6, h: 16, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'collectionTypeBreakdown', x: 0, y: 16, w: 6, h: 16, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'queueProcessor', x: 0, y: 32, w: 6, h: 16, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'recentlyImported', x: 0, y: 48, w: 6, h: 19, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'shokoNews', x: 0, y: 67, w: 6, h: 14, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'importFolders', x: 0, y: 81, w: 6, h: 14, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'importBreakdown', x: 0, y: 95, w: 6, h: 14, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'continueWatching', x: 0, y: 109, w: 6, h: 19, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'nextUp', x: 0, y: 128, w: 6, h: 19, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'upcomingAnime', x: 0, y: 147, w: 6, h: 21, minW: 2, minH: 2, moved: false, static: false,
+      },
+      {
+        i: 'recommendedAnime', x: 0, y: 168, w: 6, h: 19, minW: 2, minH: 2, moved: false, static: false,
+      },
     ],
   },
 };
@@ -179,7 +245,7 @@ function SettingsPage() {
   const { pathname } = useLocation();
 
   const settingsQuery = useGetSettingsQuery();
-  const settings = settingsQuery?.data ?? initialSettings;
+  const settings = useMemo(() => settingsQuery?.data ?? initialSettings, [settingsQuery]);
   const [patchSettings] = usePatchSettingsMutation();
 
   const [newSettings, setNewSettings] = useState(initialSettings);
@@ -190,61 +256,66 @@ function SettingsPage() {
   useEffect(() => {
     dispatch(setMiscItem({ webuiPreviewTheme: null }));
     setNewSettings(settings);
-  }, [settings]);
+  }, [dispatch, settings]);
 
   const unsavedChanges = useMemo(() => {
     if (isEqual(settings, newSettings)) return false;
-    else return !isEqual(newSettings, initialSettings);
-  }, [newSettings]);
+    return !isEqual(newSettings, initialSettings);
+  }, [newSettings, settings]);
 
   const updateSetting = (type: string, key: string, value: string) => {
+    if (key === 'theme') {
+      globalThis.localStorage.setItem('theme', value);
+    }
+
     const tempSettings = { ...(newSettings[type]), [key]: value };
     setNewSettings({ ...newSettings, [type]: tempSettings });
 
-    if (type === 'WebUI_Settings' && key === 'theme')
+    if (type === 'WebUI_Settings' && key === 'theme') {
       dispatch(setMiscItem({ webuiPreviewTheme: value }));
+    }
   };
 
   const saveSettings = async () => {
     try {
       await patchSettings({ oldSettings: settings, newSettings }).unwrap();
       await settingsQuery.refetch();
-    } catch (error) {}
+    } catch (error) { /* empty */ }
   };
 
   return (
     <div className="flex grow justify-center gap-x-8 min-h-full" onClick={() => setShowNav(false)}>
       <TransitionDiv
-        className="flex flex-col w-72 bg-background-alt rounded-md border border-background-border p-8 z-10 gap-y-4 font-semibold bg-opacity-50 relative top-0"
+        className="flex flex-col w-72 bg-panel-background-transparent rounded-md border border-panel-border p-8 z-10 gap-y-4 font-semibold relative top-0"
         show={!(isSm && !showNav)}
         enter={cx(isSm ? 'transition-transform' : 'transition-none')}
         enterFrom="-translate-x-64"
         enterTo="translate-x-0"
       >
-       <div className='sticky top-[4.25rem]'>
-         <div className="text-xl opacity-100 mb-8">Settings</div>
-         <div className='flex flex-col gap-y-4'>
-           {items.map(item => (
-             <NavLink to={item.path} className={({ isActive }) => isActive ? 'text-highlight-1' : ''} key={item.path}>
-               {item.name}
-             </NavLink>
-           ))}
-         </div>
-       </div>
+        <div className="sticky top-8">
+          <div className="text-xl opacity-100 mb-8">Settings</div>
+          <div className="flex flex-col gap-y-4">
+            {items.map(item => (
+              <NavLink to={item.path} className={({ isActive }) => (isActive ? 'text-panel-primary' : '')} key={item.path}>
+                {item.name}
+              </NavLink>
+            ))}
+          </div>
+        </div>
       </TransitionDiv>
-      {/*{isSm && (*/}
-      {/*  <div className="flex justify-center mb-8 font-semibold">*/}
-      {/*    Settings*/}
-      {/*    <Icon path={mdiChevronRight} size={1} className="mx-1" />*/}
-      {/*    <div className="flex text-highlight-1 rounded pl-2 border border-highlight-1 items-center cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowNav(!showNav); }}>*/}
-      {/*      {find(items, item => item.path === pathname.split('/').pop())?.name}*/}
-      {/*      <Icon path={mdiChevronDown} size={1} />*/}
-      {/*    </div>*/}
-      {/*  </div>*/}
-      {/*)}*/}
-      <div className="flex flex-col p-8 bg-background-alt bg-opacity-50 rounded-md border border-background-border gap-y-8 w-[37.5rem] min-h-full overflow-y-visible">
+      {/* {isSm && ( */}
+      {/*  <div className="flex justify-center mb-8 font-semibold"> */}
+      {/*    Settings */}
+      {/*    <Icon path={mdiChevronRight} size={1} className="mx-1" /> */}
+      {/*    <div className="flex text-panel-primary rounded pl-2 border border-panel-primary items-center cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowNav(!showNav); }}> */}
+      {/*      {find(items, item => item.path === pathname.split('/').pop())?.name} */}
+      {/*      <Icon path={mdiChevronDown} size={1} /> */}
+      {/*    </div> */}
+      {/*  </div> */}
+      {/* )} */}
+      <div className="flex flex-col p-8 bg-panel-background-transparent rounded-md border border-panel-border gap-y-8 w-[37.5rem] min-h-full overflow-y-visible">
         {settingsQuery.isLoading ? (
-          <div className="flex grow items-center justify-center text-highlight-1">
+          <div className="flex grow items-center justify-center text-panel-primary">
             <Icon path={mdiLoading} spin size={5} />
           </div>
         ) : (
@@ -258,18 +329,18 @@ function SettingsPage() {
             />
             {pathname.split('/').pop() !== 'user-management' && (
               <div className="flex max-w-[34rem] mt-10 justify-end font-semibold">
-                <Button onClick={() => setNewSettings(settings)} className="bg-background-alt px-3 py-2 border border-background-border text-font-main">Cancel</Button>
-                <Button onClick={() => saveSettings()} className="bg-highlight-1 px-3 py-2 ml-3 border border-background-border">Save</Button>
+                <Button onClick={() => setNewSettings(settings)} buttonType="secondary" className="px-3 py-2">Cancel</Button>
+                <Button onClick={() => saveSettings()} buttonType="primary" className="px-3 py-2 ml-3">Save</Button>
               </div>
             )}
           </>
         )}
       </div>
-      <div className={cx('flex w-96 bg-background-alt border border-background-border rounded-md p-8 gap-x-2 font-semibold items-center bg-opacity-50 sticky top-0 transition-opacity h-full', unsavedChanges ? 'opacity-100' : 'opacity-0')}>
-        <Icon path={mdiInformationOutline} size={1} className="text-highlight-1" />
+      <div className={cx('flex w-96 bg-panel-background-transparent border border-panel-border rounded-md p-8 gap-x-2 font-semibold items-center sticky top-0 transition-opacity h-full', unsavedChanges ? 'opacity-100' : 'opacity-0')}>
+        <Icon path={mdiInformationOutline} size={1} className="text-panel-primary" />
         Whoa! You Have Unsaved Changes!
       </div>
-      <div className="h-full w-full -mt-8 left-0 fixed -z-10 !bg-center !bg-cover !bg-no-repeat" style={{ background: 'linear-gradient(180deg, rgb(var(--color-image-overlay)/0.9) 0%, rgb(var(--color-background)) 100%), url(/api/v3/Image/Random/Fanart)' }} />
+      <div className="h-full w-full top-0 left-0 fixed opacity-5 -z-10" style={{ background: 'center / cover no-repeat url(/api/v3/Image/Random/Fanart)' }} />
     </div>
   );
 }

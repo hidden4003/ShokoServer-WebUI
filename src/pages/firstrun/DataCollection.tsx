@@ -1,17 +1,16 @@
 import React from 'react';
 
-import Footer from './Footer';
 import TransitionDiv from '@/components/TransitionDiv';
+import Footer from './Footer';
 
 function DataCollection() {
-
   return (
     <TransitionDiv className="flex flex-col justify-center max-w-[38rem] gap-y-8">
       <div className="font-semibold text-xl">Data Collection</div>
       <div className="text-justify">
         Shoko is an open-source project that is developed by volunteers during their free time. In order to improve
         Shoko more effectively, we have implemented&nbsp;
-        <a href="https://sentry.io/" target="_blank" rel="noopener noreferrer" className="text-highlight-1 hover:underline font-bold">Sentry.io</a>
+        <a href="https://sentry.io/" target="_blank" rel="noopener noreferrer" className="text-panel-primary hover:underline font-bold">Sentry.io</a>
         ,which is a third-party service that helps track errors
         and monitor performance.
       </div>
@@ -23,7 +22,7 @@ function DataCollection() {
       </div>
       <div className="text-justify">
         We want to assure our users that we take data privacy seriously and only collect non-identifiable information to
-        improve Shoko, meaning that we don't collect any personal information that could be used to identify you.
+        improve Shoko, meaning that we don&apos;t collect any personal information that could be used to identify you.
         We&apos;re not interested in knowing the specific titles in your collection or the content you watch. Our sole
         objective is to improve Shoko, and the data we collect will help us achieve this goal.
       </div>

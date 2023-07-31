@@ -9,7 +9,6 @@ import Events from '@/core/events';
 
 import ImportFolderModal from '@/components/Dialogs/ImportFolderModal';
 import ProfileModal from '@/components/Dialogs/ProfileModal';
-import FiltersModal from '@/components/Dialogs/FiltersModal';
 import Header from '@/components/Layout/Header';
 import TopNav from '@/components/Layout/TopNav';
 
@@ -28,7 +27,7 @@ function MainPage() {
 
   useEffect(() => {
     dispatch({ type: Events.MAINPAGE_LOAD });
-  }, []);
+  }, [dispatch]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -47,11 +46,10 @@ function MainPage() {
       <div className="flex flex-col grow overflow-x-clip">
         <ImportFolderModal />
         <ProfileModal />
-        <FiltersModal />
         <TopNav />
         {isSm && (<Header showSidebar={showSmSidebar} setShowSidebar={setShowSmSidebar} />)}
-        <div className="grow shoko-scrollbar overflow-y-auto py-8" id="scrollContainer" ref={scrollRef}>
-          <div className="max-w-[120rem] w-full mx-auto px-8 min-h-full flex flex-col" onClick={() => setShowSmSidebar(false)}>
+        <div className="grow shoko-scrollbar overflow-y-auto py-8 scroll-gutter" ref={scrollRef}>
+          <div className="max-w-[120rem] w-full mx-auto px-8 min-h-full flex flex-col scroll-no-gutter" onClick={() => setShowSmSidebar(false)}>
             <Outlet context={{ scrollRef }} />
           </div>
         </div>

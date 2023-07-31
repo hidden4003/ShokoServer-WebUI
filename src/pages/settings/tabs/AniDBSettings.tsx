@@ -14,8 +14,8 @@ import SelectSmall from '@/components/Input/SelectSmall';
 import LanguagesModal, { languageDescription } from '@/components/Dialogs/LanguagesModal';
 import toast from '@/components/Toast';
 
-import { useSettingsContext } from '../SettingsPage';
 import { usePostAniDBTestLoginMutation } from '@/core/rtkQuery/splitV3Api/settingsApi';
+import { useSettingsContext } from '../SettingsPage';
 
 const UpdateFrequencyValues = () => (
   <>
@@ -74,39 +74,39 @@ function AniDBSettings() {
   };
 
   const validateAndSaveRelationDepth = (depth: string) => {
-    if (parseInt(depth) < 0 || parseInt(depth) > 5) toast.error('Max Relation Depth may only be between 0 and 5');
+    if (parseInt(depth, 10) < 0 || parseInt(depth, 10) > 5) toast.error('Max Relation Depth may only be between 0 and 5');
     else updateSetting('AniDb', 'MaxRelationDepth', depth);
   };
 
   return (
     <>
-      <div className='font-semibold text-xl'>AniDB</div>
+      <div className="font-semibold text-xl">AniDB</div>
       <div className="flex flex-col mt-0.5 gap-y-4">
         <div className="flex justify-between">
           <div className="font-semibold">Login Options</div>
-          <Button onClick={() => testLogin()} loading={testAniDbLoginResult.isLoading} className="!text-highlight-1 font-semibold !text-base">Test</Button>
+          <Button onClick={() => testLogin()} loading={testAniDbLoginResult.isLoading} buttonType="primary" className="font-semibold !text-base">Test</Button>
         </div>
         <div className="flex flex-col gap-y-1">
           <div className="flex justify-between">
-          Username
-          <InputSmall id="username" value={Username} type="text" onChange={event => updateSetting('AniDb', 'Username', event.target.value)} className="w-32 px-3 py-1" />
-        </div>
-        <div className="flex justify-between">
-          Password
-          <InputSmall id="password" value={Password} type="password" onChange={event => updateSetting('AniDb', 'Password', event.target.value)} className="w-32 px-3 py-1" />
-        </div>
-        <div className="flex justify-between">
-          Port
-          <InputSmall id="port" value={ClientPort} type="number" onChange={event => updateSetting('AniDb', 'ClientPort', event.target.value)} className="w-32 px-3 py-1" />
-        </div>
-        <div className="flex justify-between">
-          AVDump Key
-          <InputSmall id="avdump-key" value={AVDumpKey} type="password" onChange={event => updateSetting('AniDb', 'AVDumpKey', event.target.value)} className="w-32 px-3 py-1" />
-        </div>
-        <div className="flex justify-between">
-          AVDump Port
-          <InputSmall id="avdump-port" value={AVDumpClientPort} type="number" onChange={event => updateSetting('AniDb', 'AVDumpClientPort', event.target.value)} className="w-32 px-3 py-1" />
-        </div>
+            Username
+            <InputSmall id="username" value={Username} type="text" onChange={event => updateSetting('AniDb', 'Username', event.target.value)} className="w-32 px-3 py-1" />
+          </div>
+          <div className="flex justify-between">
+            Password
+            <InputSmall id="password" value={Password} type="password" onChange={event => updateSetting('AniDb', 'Password', event.target.value)} className="w-32 px-3 py-1" />
+          </div>
+          <div className="flex justify-between">
+            Port
+            <InputSmall id="port" value={ClientPort} type="number" onChange={event => updateSetting('AniDb', 'ClientPort', event.target.value)} className="w-32 px-3 py-1" />
+          </div>
+          <div className="flex justify-between">
+            AVDump Key
+            <InputSmall id="avdump-key" value={AVDumpKey} type="password" onChange={event => updateSetting('AniDb', 'AVDumpKey', event.target.value)} className="w-32 px-3 py-1" />
+          </div>
+          <div className="flex justify-between">
+            AVDump Port
+            <InputSmall id="avdump-port" value={AVDumpClientPort} type="number" onChange={event => updateSetting('AniDb', 'AVDumpClientPort', event.target.value)} className="w-32 px-3 py-1" />
+          </div>
         </div>
       </div>
 
@@ -160,7 +160,7 @@ function AniDBSettings() {
         <div className="font-semibold">Update Options</div>
         <div className="flex flex-col gap-y-1">
           <div className="flex justify-between items-center">
-          <span>Calendar</span>
+            <span>Calendar</span>
             <SelectSmall id="calendar" value={Calendar_UpdateFrequency} onChange={event => updateSetting('AniDb', 'Calendar_UpdateFrequency', event.target.value)}>
               <UpdateFrequencyValues />
             </SelectSmall>
@@ -199,11 +199,11 @@ function AniDBSettings() {
           <div className="flex justify-between">
             Series Title (Drag to Reorder)
             <Button onClick={() => setShowLanguagesModal('Series')} tooltip="Add Language">
-              <Icon className="text-highlight-1" path={mdiPlusCircleOutline} size={1} />
+              <Icon className="text-panel-primary" path={mdiPlusCircleOutline} size={1} />
             </Button>
           </div>
-          <div className="flex bg-background-border border border-background-border rounded-md px-3 py-2">
-            <DnDList onDragEnd={onDragEnd}>
+          <div className="flex bg-panel-background-alt border border-panel-border rounded-md px-3 py-2">
+            <DnDList onDragEnd={result => onDragEnd(result)}>
               {newSettings.LanguagePreference.map(language => (
                 {
                   key: language,
@@ -211,7 +211,7 @@ function AniDBSettings() {
                     <div className="flex justify-between items-center mt-2.5 group-first:mt-0">
                       {languageDescription[language]}
                       <Button onClick={() => removeLanguage(language)} tooltip="Remove">
-                        <Icon className="text-highlight-1" path={mdiMinusCircleOutline} size={1} />
+                        <Icon className="text-panel-primary" path={mdiMinusCircleOutline} size={1} />
                       </Button>
                     </div>
                   ),
@@ -222,10 +222,10 @@ function AniDBSettings() {
           <div className="flex justify-between">
             Episode Title (Drag to Reorder)
             <Button onClick={() => setShowLanguagesModal('Episode')} tooltip="Add Language">
-              <Icon className="text-highlight-1" path={mdiPlusCircleOutline} size={1} />
+              <Icon className="text-panel-primary" path={mdiPlusCircleOutline} size={1} />
             </Button>
           </div>
-          <div className="flex bg-background-border border border-background-border rounded-md px-3 py-2">
+          <div className="flex bg-panel-background-alt border border-panel-border rounded-md px-3 py-2">
             <DnDList onDragEnd={result => onDragEnd(result, true)}>
               {newSettings.EpisodeLanguagePreference.map(language => (
                 {
@@ -234,7 +234,7 @@ function AniDBSettings() {
                     <div className="flex justify-between items-center mt-2.5 group-first:mt-0">
                       {languageDescription[language]}
                       <Button onClick={() => removeLanguage(language, true)} tooltip="Remove">
-                        <Icon className="text-highlight-1" path={mdiMinusCircleOutline} size={1} />
+                        <Icon className="text-panel-primary" path={mdiMinusCircleOutline} size={1} />
                       </Button>
                     </div>
                   ),
@@ -245,7 +245,7 @@ function AniDBSettings() {
         </div>
       </div>
 
-      {showLanguagesModal && <LanguagesModal type={showLanguagesModal} onClose={() => setShowLanguagesModal(null)} /> }
+      <LanguagesModal type={showLanguagesModal} onClose={() => setShowLanguagesModal(null)} />
     </>
   );
 }

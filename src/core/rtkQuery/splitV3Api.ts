@@ -7,12 +7,12 @@ export const splitV3Api = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: '/api/v3/',
     prepareHeaders: (headers, { getState }) => {
-      const apikey = (getState() as RootState).apiSession.apikey;
+      const { apikey } = (getState() as RootState).apiSession;
       headers.set('apikey', apikey);
       return headers;
     },
   }),
-  tagTypes: ['EpisodeUpdated', 'FileDeleted', 'FileHashed', 'FileIgnored', 'FileMatched', 'ImportFolder', 'SeriesEpisodes', 'SeriesUpdated', 'Settings', 'Users', 'SeriesSearch', 'UtilitiesRefresh', 'WebUIUpdateCheck'],
+  tagTypes: ['EpisodeUpdated', 'FileDeleted', 'FileHashed', 'FileIgnored', 'FileMatched', 'ImportFolder', 'SeriesAniDB', 'SeriesEpisodes', 'SeriesUpdated', 'Settings', 'Users', 'SeriesSearch', 'UtilitiesRefresh', 'WebUIUpdateCheck'],
   refetchOnMountOrArgChange: true,
   endpoints: () => ({}),
 });

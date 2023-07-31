@@ -60,13 +60,13 @@ const SeriesRow = (
   };
 
   return (
-    <div className={cx(virtualRow.index % 2 === 0 ? 'bg-background-alt' : 'bg-background', 'relative py-4 text-left')}>
+    <div className={cx(virtualRow.index % 2 === 0 ? 'bg-panel-background' : 'bg-panel-background', 'relative py-4 text-left')}>
       <div
         className="flex cursor-pointer px-8"
         onClick={handleExpand}
       >
         <div className="grow line-clamp-1">{row.Name}</div>
-        <a href={`https://anidb.net/anime/${row.IDs.AniDB}`} rel="noopener noreferrer" target="_blank" className="text-highlight-1 font-semibold w-24 flex gap-x-2" onClick={e => e.stopPropagation()}>
+        <a href={`https://anidb.net/anime/${row.IDs.AniDB}`} rel="noopener noreferrer" target="_blank" className="text-panel-primary font-semibold w-24 flex gap-x-2" onClick={e => e.stopPropagation()}>
           {row.IDs.AniDB}
           <Icon path={mdiOpenInNew} size={1} />
         </a>
@@ -113,13 +113,13 @@ const Menu = ({ selectedFiles, setSelectedFiles }: { selectedFiles: { [_: number
   };
 
   return (
-    <div className="box-border flex grow bg-background border border-background-border items-center rounded-md px-4 py-3 relative">
+    <div className="box-border flex grow bg-panel-background-toolbar border border-panel-border items-center rounded-md px-4 py-3 relative">
       <MenuButton onClick={refreshData} icon={mdiRefresh} name="Refresh" />
       <TransitionDiv className="flex grow gap-x-4 ml-4" show={Object.keys(selectedFiles).length !== 0}>
         <MenuButton onClick={rescanFiles} icon={mdiDatabaseSearchOutline} name="Rescan" />
         <MenuButton onClick={() => setSelectedFiles({})} icon={mdiCloseCircleOutline} name="Cancel Selection" highlight />
       </TransitionDiv>
-      <span className="text-highlight-2 ml-auto">{Object.keys(selectedFiles).length}&nbsp;</span>Files Selected
+      <span className="text-panel-important ml-auto">{Object.keys(selectedFiles).length}&nbsp;</span>Files Selected
     </div>
   );
 };
@@ -150,12 +150,14 @@ function ManuallyLinkedTab() {
 
   const [selectedFiles, setSelectedFiles] = useImmer<{ [key: number]: boolean }>({});
   const updateSelectedFiles = useCallback((fileIds: number[], select = true) => setSelectedFiles((selectedFilesState) => {
-    // eslint-disable-next-line no-param-reassign
-    fileIds.forEach(fileId => selectedFilesState[fileId] = select);
-  }), []);
+    fileIds.forEach((fileId) => {
+      // eslint-disable-next-line no-param-reassign
+      selectedFilesState[fileId] = select;
+    });
+  }), [setSelectedFiles]);
 
   const unlinkFiles = () => {
-    const fileIds = Object.keys(selectedFiles).map(parseInt);
+    const fileIds = Object.keys(selectedFiles);
 
     let failedFiles = 0;
     fileIds.forEach((fileId) => {
@@ -173,16 +175,17 @@ function ManuallyLinkedTab() {
   };
 
   return (
-    <TransitionDiv className="flex flex-col grow gap-y-8">
+    <TransitionDiv className="flex flex-col grow gap-y-8 overflow-y-auto">
 
       <div>
-        <ShokoPanel title={<Title />} options={<ItemCount filesCount={series.Total} series /> }>
+        <ShokoPanel title={<Title />} options={<ItemCount filesCount={series.Total} series />}>
           <div className="flex items-center gap-x-3">
             <Input type="text" placeholder="Search..." startIcon={mdiMagnify} id="search" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} inputClassName="px-4 py-3" />
             <Menu selectedFiles={selectedFiles} setSelectedFiles={setSelectedFiles} />
             <TransitionDiv show={Object.keys(selectedFiles).length !== 0} className="flex gap-x-3">
               <Button
-                className="px-4 py-3 bg-highlight-1 flex gap-x-2.5 font-semibold"
+                buttonType="primary"
+                className="px-4 py-3 flex gap-x-2.5 font-semibold"
                 onClick={unlinkFiles}
               >
                 <Icon path={mdiLinkOff} size={0.8333} />
@@ -193,30 +196,29 @@ function ManuallyLinkedTab() {
         </ShokoPanel>
       </div>
 
-      <div className="flex grow overflow-y-auto rounded-md bg-background-alt border border-background-border p-8">
-        {seriesQuery.isFetching ? (
+      <div className="flex grow overflow-y-auto rounded-md bg-panel-background border border-panel-border p-8">
+        {seriesQuery.isFetching && (
           <div className="flex grow justify-center items-center">
-            <Icon path={mdiLoading} size={4} className="text-highlight-1" spin />
+            <Icon path={mdiLoading} size={4} className="text-panel-primary" spin />
           </div>
-        ) : series.Total > 0 ? (
-          <div className="flex flex-col w-full">
-            <div className="flex px-6 py-4 bg-background font-semibold sticky top-0 z-[1] rounded-md border border-background-border">
+        )}
+        {!seriesQuery.isFetching && series.Total > 0 && (
+          <div className="flex flex-col w-full overflow-y-auto">
+            <div className="flex px-6 py-4 bg-panel-background-toolbar font-semibold sticky top-0 z-[1] rounded-md border border-panel-border">
               <div className="grow">Series</div>
               <div className="w-24">AniDB ID</div>
               <div className="w-32">Link Count</div>
               <div className="w-64">Date Linked</div>
               <div className="w-10" />
             </div>
-            <div ref={parentRef} className="grow overflow-y-auto">
-              {/*TODO: Figure this out so that scroll height works properly*/}
-              {/*<div className="w-full relative" style={{ height: rowVirtualizer.getTotalSize() }}>*/}
-              <div className="w-full relative">
+            <div ref={parentRef} className="grow overflow-y-auto relative">
+              <div className="w-full absolute top-0" style={{ height: rowVirtualizer.getTotalSize() }}>
                 <div className="w-full absolute top-0 left-0" style={{ transform: `translateY(${virtualItems[0].start}px)` }}>
                   {virtualItems.map((virtualRow) => {
                     const row = filteredSeries[virtualRow.index];
                     return (
                       <div
-                        className="border-background-border border rounded-md mt-2"
+                        className="border-panel-border border rounded-md mt-2"
                         key={virtualRow.key}
                         data-index={virtualRow.index}
                         ref={rowVirtualizer.measureElement}
@@ -229,8 +231,9 @@ function ManuallyLinkedTab() {
               </div>
             </div>
           </div>
-        ) : (
-          <div className="flex items-center justify-center grow font-semibold">No manually linked file(s)!</div>
+        )}
+        {!seriesQuery.isFetching && series.Total === 0 && (
+          <div className="flex items-center justify-center grow font-semibold">No Manually Linked File(s)!</div>
         )}
       </div>
     </TransitionDiv>

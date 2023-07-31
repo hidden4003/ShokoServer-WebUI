@@ -1,7 +1,6 @@
-import { splitV3Api } from '../splitV3Api';
-
 import type { ApiUserType, CommunitySitesType, UserType } from '@/core/types/api/user';
 import { identity, map, pickBy } from 'lodash';
+import { splitV3Api } from '../splitV3Api';
 
 const simplifyCommunitySites = (sites: Array<string>) => {
   const result: CommunitySitesType = {
@@ -17,13 +16,13 @@ const simplifyCommunitySites = (sites: Array<string>) => {
 
 const userApi = splitV3Api.injectEndpoints({
   endpoints: build => ({
-    // List all Users. Admin only
+    // List all users.
     getUsers: build.query<Array<UserType>, void>({
       query: () => ({ url: 'User' }),
       transformResponse: (response: Array<ApiUserType>) => {
         const users: Array<UserType> = [];
         response.forEach((user) => {
-          let { CommunitySites, ...tempUser } = user;
+          const { CommunitySites, ...tempUser } = user;
           users.push({ ...tempUser, CommunitySites: simplifyCommunitySites(CommunitySites) });
         });
         return users;
@@ -31,31 +30,69 @@ const userApi = splitV3Api.injectEndpoints({
       providesTags: ['Users'],
     }),
 
-    // Edit User. This replaces all values, except Plex and Password.
-    putUser: build.mutation<void, UserType>({
-      query: ({ CommunitySites, ...user }) => {
-        return {
-          url: 'User',
-          method: 'PUT',
-          body: { ...user, CommunitySites: map(pickBy(CommunitySites, identity), (_, key) => key) },
-        };
+    // Add a new user.
+    postUser: build.mutation<UserType, Omit<UserType, 'ID'>>({
+      query: ({ CommunitySites, ...user }) => ({
+        url: 'User',
+        method: 'POST',
+        body: { ...user, CommunitySites: CommunitySites ? map(pickBy(CommunitySites, identity), (_, key) => key) : null } as ApiUserType,
+      }),
+      transformResponse: (user: ApiUserType) => {
+        const { CommunitySites, ...tempUser } = user;
+        return { ...tempUser, CommunitySites: simplifyCommunitySites(CommunitySites) };
       },
       invalidatesTags: ['Users'],
     }),
 
-    // Change the password for a user
-    postChangePassword: build.mutation<void, { Password: string, RevokeAPIKeys: boolean, userId: number, admin: boolean }>({
-      query: ({ admin, userId, ...body }) => ({
-        url: `User/${admin ? userId.toString() : 'Current'}/ChangePassword`,
+    // Edit the current user or a user by id using a raw object to do a partial update.
+    putUser: build.mutation<UserType, UserType>({
+      query: ({ ID, CommunitySites, Password: __, ...user }) => ({
+        url: `User/${ID}`,
+        method: 'PUT',
+        body: { ...user, CommunitySites: CommunitySites ? map(pickBy(CommunitySites, identity), (_, key) => key) : null } as ApiUserType,
+      }),
+      transformResponse: (user: ApiUserType) => {
+        const { CommunitySites, ...tempUser } = user;
+        return { ...tempUser, CommunitySites: simplifyCommunitySites(CommunitySites) };
+      },
+      invalidatesTags: ['Users'],
+    }),
+
+    // Remove the user.
+    deleteUser: build.mutation<void, number>({
+      query: userId => ({
+        url: `User/${userId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Users'],
+    }),
+
+    // Change the password for the current user or a user by id.
+    postChangePassword: build.mutation<void, { Password: string; RevokeAPIKeys: boolean; ID?: number; }>({
+      query: ({ ID, ...body }) => ({
+        url: `User/${ID || 'Current'}/ChangePassword`,
         body,
         method: 'POST',
       }),
+    }),
+
+    // Get the current user.
+    getCurrentUser: build.query<UserType, void>({
+      query: () => ({ url: 'User/Current' }),
+      transformResponse: (response: ApiUserType) => {
+        const { CommunitySites, ...tempUser } = response;
+        return { ...tempUser, CommunitySites: simplifyCommunitySites(CommunitySites) };
+      },
+      providesTags: ['Users'],
     }),
   }),
 });
 
 export const {
   useGetUsersQuery,
+  usePostUserMutation,
   usePutUserMutation,
+  useDeleteUserMutation,
   usePostChangePasswordMutation,
+  useGetCurrentUserQuery,
 } = userApi;

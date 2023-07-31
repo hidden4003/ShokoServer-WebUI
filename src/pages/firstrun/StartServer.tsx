@@ -4,12 +4,12 @@ import { useNavigate } from 'react-router-dom';
 
 import { RootState } from '@/core/store';
 import { setSaved as setFirstRunSaved } from '@/core/slices/firstrun';
-import Footer from './Footer';
 import Button from '@/components/Input/Button';
 import TransitionDiv from '@/components/TransitionDiv';
 
 import { useGetInitStartServerMutation, useGetInitStatusQuery } from '@/core/rtkQuery/splitV3Api/initApi';
 import { usePostAuthMutation } from '@/core/rtkQuery/splitApi/authApi';
+import Footer from './Footer';
 
 function StartServer() {
   const dispatch = useDispatch();
@@ -60,7 +60,7 @@ function StartServer() {
         </div>
         <div className="flex justify-center items-center mt-24">
           {pollingInterval === 0 && (status.isUninitialized || status.data?.State === 4) && (
-            <Button onClick={() => handleStart()} className="bg-highlight-2 py-2 w-64 font-semibold">Start Server</Button>
+            <Button onClick={() => handleStart()} buttonType="primary" className="py-2 w-64 font-semibold">Start Server</Button>
           )}
         </div>
       </div>

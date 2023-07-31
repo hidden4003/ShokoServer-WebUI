@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '@mdi/react';
@@ -6,6 +6,8 @@ import {
   mdiChevronDown,
   mdiCogOutline,
   mdiDownloadCircleOutline,
+  mdiFileDocumentAlertOutline,
+  mdiFileQuestionOutline,
   mdiFormatListBulletedSquare,
   mdiGithub,
   mdiHelpCircleOutline,
@@ -22,24 +24,26 @@ import { siDiscord } from 'simple-icons';
 import semver from 'semver';
 import AnimateHeight from 'react-animate-height';
 
-import ShokoIcon from '../ShokoIcon';
 import { setLayoutEditMode } from '@/core/slices/mainpage';
 
-import Version from '../../../public/version.json';
 import { useGetWebuiUpdateCheckQuery, useGetWebuiUpdateMutation } from '@/core/rtkQuery/splitV3Api/webuiApi';
 import { useGetSettingsQuery } from '@/core/rtkQuery/splitV3Api/settingsApi';
+import { useGetCurrentUserQuery } from '@/core/rtkQuery/splitV3Api/userApi';
 import { initialSettings } from '@/pages/settings/SettingsPage';
+import ActionsModal from '@/components/Dialogs/ActionsModal';
+import { RootState } from '@/core/store';
 import Button from '../Input/Button';
 import toast from '../Toast';
-import ActionsModal from '@/components/Dialogs/ActionsModal';
 
-import { RootState } from '@/core/store';
+import ShokoIcon from '../ShokoIcon';
+
+const { DEV, VITE_APPVERSION } = import.meta.env;
 
 const MenuItem = ({ id, text, icon, onClick, isHighlighted }: { id: string, text: string, icon: string, onClick: () => void, isHighlighted: boolean }) => (
   <NavLink
     to={id}
     key={id}
-    className={({ isActive }) => cx('flex items-center gap-x-2', (isActive || isHighlighted) && 'text-highlight-1')}
+    className={({ isActive }) => cx('flex items-center gap-x-2', (isActive || isHighlighted) && 'text-header-primary')}
     onClick={(e) => { e.preventDefault(); onClick(); }}
   >
     <Icon path={icon} size={0.8333} />
@@ -58,17 +62,18 @@ function TopNav() {
 
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  
+
   const queueItems = useSelector((state: RootState) => state.mainpage.queueStatus);
-  const username = useSelector((state: RootState) => state.apiSession.username);
   const banStatus = useSelector((state: RootState) => state.mainpage.banStatus);
   const layoutEditMode = useSelector((state: RootState) => state.mainpage.layoutEditMode);
 
   const settingsQuery = useGetSettingsQuery();
   const webuiSettings = settingsQuery?.data?.WebUI_Settings ?? initialSettings.WebUI_Settings;
 
-  const checkWebuiUpdate = useGetWebuiUpdateCheckQuery(webuiSettings.updateChannel, { skip: Version.debug || !settingsQuery.isSuccess });
+  const checkWebuiUpdate = useGetWebuiUpdateCheckQuery({ channel: webuiSettings.updateChannel, force: false }, { skip: DEV || !settingsQuery.isSuccess });
   const [webuiUpdateTrigger, webuiUpdateResult] = useGetWebuiUpdateMutation();
+
+  const currentUser = useGetCurrentUserQuery();
 
   const [showUtilitiesMenu, setShowUtilitiesMenu] = useState(false);
   const [showActionsModal, setShowActionsModal] = useState(false);
@@ -83,12 +88,16 @@ function TopNav() {
       <div className="flex flex-col gap-y-3">
         WebUI Update Successful!
         <div className="flex items-center justify-end">
-          <Button onClick={() => {
-            toast.dismiss('webui-update');
-            navigate('/webui/dashboard');
-            setTimeout(() => window.location.reload(), 100);
-          }} className="bg-highlight-1 py-1.5 w-full">
-            Click here to reload
+          <Button
+            onClick={() => {
+              toast.dismiss('webui-update');
+              navigate('/webui/dashboard');
+              setTimeout(() => window.location.reload(), 100);
+            }}
+            buttonType="primary"
+            className="font-semibold py-1.5 w-full"
+          >
+            Click Here to Reload
           </Button>
         </div>
       </div>
@@ -100,7 +109,7 @@ function TopNav() {
         draggable: false,
         closeOnClick: false,
         toastId: 'webui-update',
-        className: 'w-72 ml-auto',
+        className: 'w-80 ml-auto',
       });
     }, error => console.error(error));
   };
@@ -109,7 +118,7 @@ function TopNav() {
     <NavLink
       to={path}
       key={path.split('/').pop()}
-      className={({ isActive }) => cx('flex items-center gap-x-2', isActive && 'text-highlight-1')}
+      className={({ isActive }) => cx('flex items-center gap-x-2', isActive && 'text-header-primary')}
       onClick={closeModalsAndSubmenus}
     >
       <Icon path={icon} size={0.8333} />
@@ -117,9 +126,15 @@ function TopNav() {
     </NavLink>
   ), []);
 
+  const webuiUpdateStatus = useMemo(() => {
+    if (webuiUpdateResult.isLoading) return 'Updating...';
+    if (checkWebuiUpdate.isFetching) return 'Checking for update';
+    return 'Update Available';
+  }, [webuiUpdateResult.isLoading, checkWebuiUpdate.isFetching]);
+
   return (
     <>
-      <div className="flex flex-col bg-background-alt drop-shadow-[0_2px_2px_rgba(0,0,0,0.25)] z-[100] text-sm font-semibold">
+      <div className="flex flex-col bg-header-background drop-shadow-[0_2px_2px_rgba(0,0,0,0.25)] z-[100] text-sm font-semibold text-header-text">
         <div className="flex justify-between px-8 py-6 items-center max-w-[120rem] w-full mx-auto">
           <div className="flex items-center gap-x-2">
             <ShokoIcon className="w-6" />
@@ -128,21 +143,25 @@ function TopNav() {
           <div className="flex items-center gap-x-8">
             <div className="flex items-center gap-x-2">
               <Icon path={mdiServer} size={0.8333} />
-              <span className="text-highlight-2">{(queueItems.HasherQueueCount + queueItems.GeneralQueueCount + queueItems.ImageQueueCount) ?? 0}</span>
+              <span className="text-header-important">{(queueItems.HasherQueueState.queueCount + queueItems.GeneralQueueState.queueCount + queueItems.ImageQueueState.queueCount) ?? 0}</span>
             </div>
             <div className="flex items-center gap-x-2">
-              <div className="flex items-center justify-center bg-highlight-1/75 hover:bg-highlight-1 w-8 h-8 text-xl rounded-full mr-1">
-                {username.charAt(0)}
+              <div className="flex items-center justify-center bg-header-primary hover:bg-header-primary-hover w-8 h-8 text-xl rounded-full mr-1">
+                {
+                  currentUser.data?.Avatar
+                    ? (<img src={currentUser.data?.Avatar} alt="avatar" className="w-8 h-8 rounded-full" />)
+                    : currentUser.data?.Username.charAt(0)
+                }
               </div>
-              <span>{username}</span>
+              <span>{currentUser.data?.Username}</span>
               <Icon path={mdiChevronDown} size={0.6666} />
             </div>
-            <NavLink to="settings" className={({ isActive }) => isActive ? 'text-highlight-1' : ''} onClick={() => closeModalsAndSubmenus()}>
+            <NavLink to="settings" className={({ isActive }) => (isActive ? 'text-header-primary' : '')} onClick={() => closeModalsAndSubmenus()}>
               <Icon path={mdiCogOutline} size={0.8333} />
             </NavLink>
           </div>
         </div>
-        <div className="bg-background-nav">
+        <div className="bg-header-background-alt text-header-text-alt">
           <div className="flex justify-between px-8 py-4 max-w-[120rem] w-full mx-auto">
             <div className="flex gap-x-8">
               {renderLinkMenuItem('dashboard', 'Dashboard', mdiTabletDashboard)}
@@ -166,29 +185,29 @@ function TopNav() {
                   isHighlighted={layoutEditMode}
                 />
               )}
-              {((checkWebuiUpdate.isSuccess && semver.gt(checkWebuiUpdate.data.Version, Version.package)) || checkWebuiUpdate.isFetching) && !webuiUpdateResult.isSuccess && (
+              {((checkWebuiUpdate.isSuccess && semver.gt(checkWebuiUpdate.data.Version, VITE_APPVERSION)) || checkWebuiUpdate.isFetching) && !webuiUpdateResult.isSuccess && (
                 <div className="flex items-center font-semibold cursor-pointer gap-x-2.5" onClick={() => handleWebUiUpdate()}>
                   <Icon
                     path={checkWebuiUpdate.isFetching || webuiUpdateResult.isLoading ? mdiLoading : mdiDownloadCircleOutline}
                     size={1}
-                    className={checkWebuiUpdate.isFetching || webuiUpdateResult.isLoading ? 'text-highlight-1' : 'text-highlight-2'}
+                    className={checkWebuiUpdate.isFetching || webuiUpdateResult.isLoading ? 'text-header-primary' : 'text-header-important'}
                     spin={checkWebuiUpdate.isFetching || webuiUpdateResult.isLoading}
                   />
                   <div className="flex">
-                    Web UI {webuiUpdateResult.isLoading ? 'Updating...' : (checkWebuiUpdate.isFetching ? 'Checking for update' : 'Update Available')}
+                    Web UI {webuiUpdateStatus}
                   </div>
                 </div>
               )}
-              {/*TODO: This maybe works, maybe doesn't. Cannot test properly.*/}
+              {/* TODO: This maybe works, maybe doesn't. Cannot test properly. */}
               {(banStatus?.udp?.updateType === 1 && banStatus?.udp?.value) && (
                 <div className="flex items-center font-semibold cursor-pointer gap-x-2.5">
-                  <Icon path={mdiInformationOutline} size={1} className="text-highlight-4"/>
+                  <Icon path={mdiInformationOutline} size={1} className="text-header-warning" />
                   AniDB UDP Ban Detected!
                 </div>
               )}
               {(banStatus?.http?.updateType === 2 && banStatus?.http?.value) && (
                 <div className="flex items-center font-semibold cursor-pointer gap-x-2.5">
-                  <Icon path={mdiInformationOutline} size={1} className="text-highlight-4"/>
+                  <Icon path={mdiInformationOutline} size={1} className="text-header-warning" />
                   AniDB HTTP Ban Detected!
                 </div>
               )}
@@ -200,10 +219,10 @@ function TopNav() {
             </div>
           </div>
         </div>
-        <AnimateHeight height={showUtilitiesMenu ? 'auto' : 0} className="bg-background-nav border-t border-background-border">
+        <AnimateHeight height={showUtilitiesMenu ? 'auto' : 0} className="bg-header-background-alt border-t border-header-border">
           <div className="max-w-[120rem] w-full mx-auto flex px-8 py-4 gap-x-8">
-            {renderLinkMenuItem('utilities/unrecognized', 'Unrecognized Files', mdiTools)}
-            {renderLinkMenuItem('utilities/series-without-files', 'Series Without Files', mdiTools)}
+            {renderLinkMenuItem('utilities/unrecognized', 'Unrecognized Files', mdiFileQuestionOutline)}
+            {renderLinkMenuItem('utilities/series-without-files', 'Series Without Files', mdiFileDocumentAlertOutline)}
           </div>
         </AnimateHeight>
       </div>

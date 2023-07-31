@@ -51,23 +51,23 @@ function ImportFolders() {
           <span className="font-semibold">{folder.Name}</span>
           <div className="flex">
             <Button onClick={() => rescanFolder(folder.ID, folder.Name)} tooltip="Rescan Folder" className="mr-2">
-              <Icon className="text-highlight-1" path={mdiDatabaseSearchOutline} size={1} horizontal vertical rotate={180}/>
+              <Icon className="text-panel-primary" path={mdiDatabaseSearchOutline} size={1} horizontal vertical rotate={180} />
             </Button>
             <Button onClick={() => openImportFolderModalEdit(folder.ID)} tooltip="Edit Folder">
-              <Icon className="text-highlight-1" path={mdiDatabaseEditOutline} size={1} horizontal vertical rotate={180}/>
+              <Icon className="text-panel-primary" path={mdiDatabaseEditOutline} size={1} horizontal vertical rotate={180} />
             </Button>
           </div>
         </div>
-        <div className = "flex mb-1">
-          <div className = 'flex-grow'>Location</div>
+        <div className="flex mb-1">
+          <div className="flex-grow">Location</div>
           <div>{folder.Path}</div>
         </div>
-        <div className = "flex mb-1">
-          <div className = 'flex-grow'>Type</div>
+        <div className="flex mb-1">
+          <div className="flex-grow">Type</div>
           <div>{flags}</div>
         </div>
-        <div className = "flex">
-          <div className = "grow">Size</div>
+        <div className="flex">
+          <div className="grow">Size</div>
           <div>{prettyBytes(folder.FileSize ?? 0, { binary: true })} ({(folder.Size ?? 2043).toLocaleString('en-US')} Series)</div>
         </div>
       </div>
@@ -76,14 +76,14 @@ function ImportFolders() {
 
   const renderOptions = () => (
     <div className="cursor-pointer" onClick={() => setImportFolderModalStatus(true)} title="Add Folder">
-        <Icon className="text-highlight-1" path={mdiFolderPlusOutline} size={1} horizontal vertical rotate={180}/>
+      <Icon className="text-panel-primary" path={mdiFolderPlusOutline} size={1} horizontal vertical rotate={180} />
     </div>
   );
 
   return (
     <ShokoPanel title="Import Folders" options={renderOptions()} isFetching={importFolderQuery.isLoading} editMode={layoutEditMode}>
       {importFolders.length === 0
-        ? (<div className="flex justify-center font-semibold mt-4" key="no-folders">No import folders added!</div>)
+        ? (<div className="flex justify-center font-semibold mt-4" key="no-folders">No Import Folders Added!</div>)
         : importFolders.map(importFolder => renderFolder(importFolder))}
     </ShokoPanel>
   );

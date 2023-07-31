@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 import { createBrowserRouter, createRoutesFromElements, RouterProvider } from 'react-router-dom';
 import { Navigate, Route } from 'react-router';
@@ -6,7 +6,6 @@ import { useSelector } from 'react-redux';
 
 import { RootState } from '@/core/store';
 
-import AuthenticatedRoute from './AuthenticatedRoute';
 import FirstRunPage from '@/pages/firstrun/FirstRunPage';
 import LoginPage from '@/pages/login/LoginPage';
 import MainPage from '@/pages/main/MainPage';
@@ -26,9 +25,8 @@ import MetadataSources from '@/pages/firstrun/MetadataSources';
 import StartServer from '@/pages/firstrun/StartServer';
 
 // Collection
-import GroupList from '@/pages/collection/GroupList';
+import Collection from '@/pages/collection/Collection';
 import Group from '@/pages/collection/Group';
-import FilterGroupList from '@/pages/collection/FilterGroupList';
 import Series from '@/pages/collection/Series';
 import SeriesCredits from '@/pages/collection/series/SeriesCredits';
 import SeriesEpisodes from '@/pages/collection/series/SeriesEpisodes';
@@ -53,6 +51,7 @@ import ImportSettings from '@/pages/settings/tabs/ImportSettings';
 import MetadataSitesSettings from '@/pages/settings/tabs/MetadataSitesSettings';
 import SettingsPage, { initialSettings } from '@/pages/settings/SettingsPage';
 import UserManagementSettings from '@/pages/settings/tabs/UserManagementSettings';
+import AuthenticatedRoute from './AuthenticatedRoute';
 
 import { useGetSettingsQuery } from '../rtkQuery/splitV3Api/settingsApi';
 
@@ -91,17 +90,17 @@ const router = createBrowserRouter(
           </Route>
           <Route path="log" element={<LogsPage />} />
           <Route path="collection">
-            <Route index element={<GroupList />}/>
-            <Route path="group/:groupId" element={<Group />}/>
-            <Route path="filter/:filterId" element={<FilterGroupList />}/>
+            <Route index element={<Collection />} />
+            <Route path="filter/:filterId" element={<Collection />} />
+            <Route path="group/:groupId" element={<Group />} />
             <Route path="series/:seriesId" element={<Series />}>
-              <Route index element={<Navigate to="overview" replace />}/>
-              <Route path="overview" element={<SeriesOverview />}/>
-              <Route path="episodes" element={<SeriesEpisodes />}/>
-              <Route path="credits" element={<SeriesCredits />}/>
-              <Route path="images" element={<SeriesImages />}/>
-              <Route path="files" element={<SeriesFileSummary />}/>
-              <Route path="tags" element={<SeriesTags />}/>
+              <Route index element={<Navigate to="overview" replace />} />
+              <Route path="overview" element={<SeriesOverview />} />
+              <Route path="episodes" element={<SeriesEpisodes />} />
+              <Route path="credits" element={<SeriesCredits />} />
+              <Route path="images" element={<SeriesImages />} />
+              <Route path="files" element={<SeriesFileSummary />} />
+              <Route path="tags" element={<SeriesTags />} />
             </Route>
           </Route>
           <Route path="settings" element={<SettingsPage />}>
@@ -124,13 +123,22 @@ const Router = () => {
 
   const settingsQuery = useGetSettingsQuery(undefined, { skip: apikey === '' });
   const { theme } = settingsQuery.data?.WebUI_Settings ?? initialSettings.WebUI_Settings;
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    document.body.className = `${webuiPreviewTheme ?? theme} theme-shoko-gray`;
-  }, [theme, webuiPreviewTheme]);
+    document.body.className = `${apikey === '' ? globalThis.localStorage.getItem('theme') : (webuiPreviewTheme ?? theme)} theme-shoko-gray`;
+    const timeoutId = setTimeout(() => {
+      if (bodyRef.current) {
+        bodyRef.current.style.visibility = 'initial';
+      }
+    }, 125);
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [apikey, theme, webuiPreviewTheme]);
 
   return (
-    <div id="app-container" className="flex h-screen">
+    <div id="app-container" className="flex h-screen" ref={bodyRef}>
       <RouterProvider router={router} />
     </div>
   );

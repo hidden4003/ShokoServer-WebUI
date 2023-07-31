@@ -3,11 +3,12 @@ import { useDispatch } from 'react-redux';
 import cx from 'classnames';
 
 import { setSaved as setFirstRunSaved, TestStatusType } from '@/core/slices/firstrun';
+import TransitionDiv from '@/components/TransitionDiv';
+import Button from '@/components/Input/Button';
 import Footer from './Footer';
 import AniDBTab from './MetadataSourcesTabs/AniDBTab';
 import TvDBTab from './MetadataSourcesTabs/TvDBTab';
 import MovieDBTab from './MetadataSourcesTabs/MovieDBTab';
-import TransitionDiv from '@/components/TransitionDiv';
 
 import { useFirstRunSettingsContext } from './FirstRunPage';
 
@@ -20,9 +21,9 @@ function MetadataSources() {
   const [status, setStatus] = useState<TestStatusType>({ type: 'success', text: '' });
 
   const renderTabButton = (title: string, key: string) => (
-    <button onClick={() => setActiveTab(key)} className={cx(['font-semibold', activeTab === key && 'text-highlight-1'])}>
+    <Button onClick={() => setActiveTab(key)} className={cx(['!text-panel-text', 'font-semibold', '!text-lg', 'drop-shadow-none', activeTab === key && '!text-panel-primary'])}>
       {title}
-    </button>
+    </Button>
   );
 
   const renderTabContent = () => {
@@ -51,7 +52,7 @@ function MetadataSources() {
         collection. We highly recommend that you review the settings for each site and configure them to meet your
         preferences.
       </div>
-      <div className="flex border-b-2 border-background-border pb-3 gap-x-2 text-xl">
+      <div className="flex border-b-2 border-panel-border pb-3 gap-x-2 text-xl">
         {renderTabButton('AniDB', 'anidb')}
         |
         {renderTabButton('TMBD', 'moviedb')}

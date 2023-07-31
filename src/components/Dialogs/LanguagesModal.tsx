@@ -1,16 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { remove } from 'lodash';
+import { initialSettings } from '@/pages/settings/SettingsPage';
+import { useGetSettingsQuery, usePatchSettingsMutation } from '@/core/rtkQuery/splitV3Api/settingsApi';
 import ModalPanel from '../Panels/ModalPanel';
 import Button from '../Input/Button';
 import Checkbox from '../Input/Checkbox';
-import { initialSettings } from '@/pages/settings/SettingsPage';
-
-import { useGetSettingsQuery, usePatchSettingsMutation } from '@/core/rtkQuery/splitV3Api/settingsApi';
 
 export const languageDescription = {
   'x-jat': 'Romaji (x-jat)',
+  'x-zht': 'Pinyin (x-zht)',
   en: 'English (en)',
-  ja: 'Kanji',
+  ja: 'Japanese (ja)',
   ar: 'Arabic (ar)',
   bd: 'Bangladeshi (bd)',
   bg: 'Bulgarian (bd)',
@@ -66,21 +66,21 @@ type Props = {
 
 function LanguagesModal({ type, onClose }: Props) {
   const settingsQuery = useGetSettingsQuery();
-  const settings = settingsQuery.data ?? initialSettings;
-  const LanguagePreference = type === 'Episode' ? settings.EpisodeLanguagePreference ?? ['en'] : settings.LanguagePreference ?? ['x-jat', 'en'];
+  const settings = useMemo(() => settingsQuery.data ?? initialSettings, [settingsQuery]);
+  const LanguagePreference = useMemo(() => (type === 'Episode' ? settings.EpisodeLanguagePreference ?? ['en'] : settings.LanguagePreference ?? ['x-jat', 'en']), [type, settings]);
   const [patchSettings] = usePatchSettingsMutation();
 
   const [languages, setLanguages] = useState([] as Array<string>);
 
   const handleSave = useCallback(() => {
-    patchSettings({ oldSettings: settings, newSettings: { ...settings, [ type === 'Episode' ? 'EpisodeLanguagePreference' : 'LanguagePreference' ]: languages }  }).unwrap()
+    patchSettings({ oldSettings: settings, newSettings: { ...settings, [type === 'Episode' ? 'EpisodeLanguagePreference' : 'LanguagePreference']: languages } }).unwrap()
       .then(() => onClose())
       .catch(error => console.error(error));
-  }, [type]);
+  }, [type, settings, languages, patchSettings, onClose]);
 
   useEffect(() => {
     if (type !== null) setLanguages(LanguagePreference);
-  }, [type]);
+  }, [type, LanguagePreference]);
 
   const handleInputChange = (event: any) => {
     const { id, checked: value } = event.target;
@@ -100,14 +100,14 @@ function LanguagesModal({ type, onClose }: Props) {
       className="p-8 flex-col drop-shadow-lg gap-y-4 h-2/3"
     >
       <div className="font-semibold text-xl">{type} Languages</div>
-      <div className="flex flex-col overflow-y-auto bg-background-border rounded-md border border-background-border px-3 py-2 gap-y-1.5">
+      <div className="flex flex-col overflow-y-auto bg-panel-background-alt rounded-md border border-panel-border px-3 py-2 gap-y-1.5">
         {Object.keys(languageDescription).map(key => (
           <Checkbox id={key} key={key} isChecked={languages.includes(key)} onChange={handleInputChange} label={languageDescription[key]} justify />
         ))}
       </div>
       <div className="flex justify-end gap-x-3 font-semibold">
-        <Button onClick={onClose} className="bg-background-nav px-5 py-2 text-font-main">Discard</Button>
-        <Button onClick={handleSave} className="bg-highlight-1 px-5 py-2" disabled={languages.length === 0}>Save</Button>
+        <Button onClick={onClose} buttonType="secondary" className="px-5 py-2">Discard</Button>
+        <Button onClick={handleSave} buttonType="primary" className="px-5 py-2" disabled={languages.length === 0}>Save</Button>
       </div>
     </ModalPanel>
   );
