@@ -1,7 +1,12 @@
-import type { WebuiGroupExtra, WebuiSeriesDetailsType } from '@/core/types/api/webui';
-import { WebuiSeriesFileSummaryType, WebuiTheme } from '@/core/types/api/webui';
+import { splitV3Api } from '@/core/rtkQuery/splitV3Api';
+
 import type { ComponentVersionType } from '@/core/types/api/init';
-import { splitV3Api } from '../splitV3Api';
+import type {
+  WebuiGroupExtra,
+  WebuiSeriesDetailsType,
+  WebuiSeriesFileSummaryType,
+  WebuiTheme,
+} from '@/core/types/api/webui';
 
 export type GroupViewApiRequest = {
   GroupIDs: number[];
@@ -12,6 +17,11 @@ export type GroupViewApiRequest = {
 
 export type SeriesOverviewApiRequest = {
   SeriesID: string;
+};
+
+export type SeriesFileSummaryApiRequest = {
+  SeriesID: string;
+  groupBy?: string;
 };
 
 const webuiApi = splitV3Api.injectEndpoints({
@@ -45,13 +55,13 @@ const webuiApi = splitV3Api.injectEndpoints({
     }),
 
     // Check for latest version for the selected channel and return a Shoko.Server.API.v3.Models.Common.ComponentVersion containing the version information.
-    getWebuiUpdate: build.mutation<void, 'Stable' | 'Dev'>({
-      query: channel => ({ url: 'WebUI/Update', params: { channel } }),
+    postWebuiUpdate: build.mutation<void, 'Stable' | 'Dev'>({
+      query: channel => ({ url: 'WebUI/Update', params: { channel }, method: 'POST' }),
     }),
 
     // Check for latest version for the selected channel and return a Shoko.Server.API.v3.Models.Common.ComponentVersion containing the version information.
-    getSeriesFileSummery: build.query<WebuiSeriesFileSummaryType, SeriesOverviewApiRequest>({
-      query: ({ SeriesID }) => ({ url: `WebUI/Series/${SeriesID}/FileSummary` }),
+    getSeriesFileSummery: build.query<WebuiSeriesFileSummaryType, SeriesFileSummaryApiRequest>({
+      query: ({ SeriesID, ...params }) => ({ url: `WebUI/Series/${SeriesID}/FileSummary`, params }),
     }),
 
     // Retrieves the list of available themes.
@@ -62,11 +72,11 @@ const webuiApi = splitV3Api.injectEndpoints({
 });
 
 export const {
-  useLazyGetGroupViewQuery,
-  useGetWebuiUpdateCheckQuery,
-  useGetWebuiUpdateMutation,
   useGetSeriesOverviewQuery,
-  useGetSeriesFileSummeryQuery,
   useGetWebuiThemesQuery,
+  useGetWebuiUpdateCheckQuery,
+  useLazyGetGroupViewQuery,
+  useLazyGetSeriesFileSummeryQuery,
   useLazyGetWebuiUpdateCheckQuery,
+  usePostWebuiUpdateMutation,
 } = webuiApi;

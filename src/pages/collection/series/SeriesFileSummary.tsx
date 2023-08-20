@@ -1,19 +1,23 @@
-import React, { useMemo } from 'react';
-import ShokoPanel from '@/components/Panels/ShokoPanel';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
-import { useGetSeriesFileSummeryQuery } from '@/core/rtkQuery/splitV3Api/webuiApi';
+import { mdiOpenInNew } from '@mdi/js';
+import { Icon } from '@mdi/react';
 import { find, forEach, get, map, omit } from 'lodash';
 import prettyBytes from 'pretty-bytes';
-import { Icon } from '@mdi/react';
-import { mdiOpenInNew } from '@mdi/js';
 
-const HeaderFragment = ({ title, range }) => {
-  if (!title || !range) { return null; }
+import Select from '@/components/Input/Select';
+import ShokoPanel from '@/components/Panels/ShokoPanel';
+import { useLazyGetSeriesFileSummeryQuery } from '@/core/rtkQuery/splitV3Api/webuiApi';
+
+import type { WebuiSeriesFileSummaryGroupType } from '@/core/types/api/webui';
+
+const HeaderFragment = ({ range, title }) => {
+  if (!title || !range) return null;
   return (
-    <React.Fragment>
+    <>
       <span>{title}</span>
       <span className="text-panel-important">{range}</span>
-    </React.Fragment>
+    </>
   );
 };
 
@@ -21,154 +25,251 @@ const Header = ({ ranges }) => (
   <div className="flex gap-x-2">
     <HeaderFragment title={ranges?.Normal?.Range.length > 2 ? 'Episodes' : 'Episode'} range={ranges?.Normal?.Range} />
     <HeaderFragment title={ranges?.Normal?.Range.length > 2 ? 'Specials' : 'Special'} range={ranges?.Special?.Range} />
-    {map(omit(ranges, ['Normal', 'Special']), (item, key) => (
-      <HeaderFragment title={key} range={item.Range} />
-    ))}
+    {map(omit(ranges, ['Normal', 'Special']), (item, key) => <HeaderFragment title={key} range={item.Range} />)}
   </div>
 );
 
-type SizeTotals = {
-  [key: string] : {
-    size: number;
-    count: number;
-  }
-};
+const SummaryGroup = React.memo(({ group }: { group: WebuiSeriesFileSummaryGroupType }) => {
+  const sizes = useMemo(() => {
+    const sizeMap: Record<string, { size: number, count: number }> = {};
+    forEach(group.RangeByType, (item, key) => {
+      let idx = 'Other';
+      if (key === 'Normal') {
+        idx = item.Count > 1 ? 'Episodes' : 'Episode';
+      } else if (key === 'Special') {
+        idx = item.Count > 1 ? 'Specials' : 'Special';
+      }
 
-const renderSizes = (ranges) => {
-  const sizes: SizeTotals = {};
-  forEach(ranges, (item, key) => {
-    let idx;
-    if (key === 'Normal') {
-      idx = item.Count > 1 ? 'Episodes' : 'Episode';
-    } else if (key === 'Special') {
-      idx = item.Count > 1 ? 'Specials' : 'Special';
-    } else {
-      idx = 'Other';
-    }
-    if (!sizes[idx]) {
-      sizes[idx] = { size: 0, count: 0 };
-    }
-    sizes[idx].size += item.FileSize;
-    sizes[idx].count += item.Count;
-  });
+      if (!sizeMap[idx]) {
+        sizeMap[idx] = { size: 0, count: 0 };
+      }
+      sizeMap[idx].size += item.FileSize;
+      sizeMap[idx].count += item.Count;
+    });
 
-  return map(sizes, (size, name) => (
-    `${size.count} ${name} (${prettyBytes(size.size, { binary: true })})`
-  )).join(' | ');
-};
+    return map(sizeMap, (size, name) => (
+      `${size.count} ${name} (${prettyBytes(size.size, { binary: true })})`
+    )).join(' | ');
+  }, [group]);
+
+  const groupDetails = useMemo(() => (group.GroupName ? `${group.GroupName} (${group.GroupNameShort})` : '-'), [group]);
+  const videoDetails = useMemo(() => {
+    const conditions: string[] = [];
+    if (group.FileSource) {
+      conditions.push(group.FileSource.replace('BluRay', 'Blu-Ray'));
+    }
+    if (group.FileVersion) {
+      conditions.push(`v${group.FileVersion}`);
+    }
+    if (group.VideoBitDepth) {
+      conditions.push(`${group.VideoBitDepth}-bit`);
+    }
+    if (group.VideoResolution) {
+      conditions.push(`${group.VideoResolution} (${group.VideoWidth}x${group.VideoHeight})`);
+    }
+    if (group.VideoCodecs) {
+      conditions.push(group.VideoCodecs);
+    }
+    return conditions.length ? conditions.join(' | ') : '-';
+  }, [group]);
+  const audioDetails = useMemo(() => {
+    const conditions: string[] = [];
+    if (group.AudioCodecs) {
+      conditions.push(group.AudioCodecs.toUpperCase());
+    }
+    if (group.AudioLanguages) {
+      if (group.AudioStreamCount !== undefined) {
+        conditions.push(`Multi Audio (${group.AudioLanguages.join(', ')})`);
+      } else {
+        conditions.push(group.AudioLanguages.join(', '));
+      }
+    }
+    return conditions.length ? conditions.join(' | ') : '-';
+  }, [group]);
+  const subtitleDetails = useMemo(() => {
+    const conditions: string[] = [];
+    if (group.SubtitleCodecs) {
+      conditions.push(group.SubtitleCodecs.toUpperCase());
+    }
+    if (group.SubtitleLanguages) {
+      if (group.SubtitleStreamCount !== undefined) {
+        conditions.push(`Multi Audio (${group.SubtitleLanguages.join(', ')})`);
+      } else {
+        conditions.push(group.SubtitleLanguages.join(', '));
+      }
+    }
+    return conditions.length ? conditions.join(' | ') : '-';
+  }, [group]);
+  const locationDetails = group.FileLocation ?? '-';
+
+  return (
+    <div className="flex flex-col gap-y-8 rounded border border-panel-border p-8">
+      <div className="flex text-xl font-semibold">
+        <Header ranges={group.RangeByType} />
+      </div>
+      <div className="flex">
+        <div className="flex grow flex-col gap-y-4 font-semibold">
+          <span>Group</span>
+          <span>Video</span>
+          <span>Location</span>
+        </div>
+        <div className="flex grow-[2] flex-col gap-y-4">
+          <span>{groupDetails}</span>
+          <span>{videoDetails}</span>
+          <span>{locationDetails}</span>
+        </div>
+        <div className="flex grow flex-col gap-y-4 font-semibold">
+          <span>Total</span>
+          <span>Audio</span>
+          <span>Subtitles</span>
+        </div>
+        <div className="flex grow-[2] flex-col gap-y-4">
+          <span>{sizes}</span>
+          <span>{audioDetails}</span>
+          <span>{subtitleDetails}</span>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 const SeriesFileSummary = () => {
   const { seriesId } = useParams();
 
-  const fileSummaryData = useGetSeriesFileSummeryQuery({ SeriesID: seriesId! }, { skip: !seriesId });
-  const fileSummary = fileSummaryData.data;
+  const [groupBy, setGroupBy] = useState('GroupName,FileVersion,FileSource');
+  const [getFileSummary, fileSummaryQuery] = useLazyGetSeriesFileSummeryQuery();
+  const fileSummary = fileSummaryQuery.data;
 
   const summary = useMemo(() => {
-    let TotalEpisodeCount = 0;
     let TotalEpisodeSize = 0;
-    const TotalEpisodeSourceMap = {};
-    let SpecialEpisodeCount = 0;
-    const SpecialEpisodeSourceMap = {};
+    const ByTypeMap: Record<string, { count: number, source: Record<string, number> }> = {};
     const GroupsMap: string[] = [];
     forEach(fileSummary?.Groups, (group) => {
-      if (GroupsMap.indexOf(group.GroupName) === -1) { GroupsMap.push(group.GroupName); }
+      if (group.GroupNameShort && GroupsMap.indexOf(group.GroupNameShort) === -1) GroupsMap.push(group.GroupNameShort);
       forEach(group.RangeByType, (item, type) => {
-        TotalEpisodeCount += item.Count;
         TotalEpisodeSize += item.FileSize;
-        TotalEpisodeSourceMap[group.Source] = get(TotalEpisodeSourceMap, group.Source, 0) + item.Count;
-        if (type === 'Special') {
-          SpecialEpisodeCount += item.Count;
-          SpecialEpisodeSourceMap[group.Source] = get(SpecialEpisodeSourceMap, group.Source, 0) + item.Count;
+        const mappedType = type === 'Normal' ? 'Episode' : type;
+        const byType = ByTypeMap[mappedType] || (ByTypeMap[mappedType] = { count: 0, source: {} });
+        byType.count += item.Count;
+        if (group.FileSource) {
+          byType.source[group.FileSource] = get(byType.source, group.FileSource, 0) + item.Count;
         }
       });
     });
 
-    const TotalEpisodeSource = map(TotalEpisodeSourceMap, (count, type) => `${type} (${count})`).join(', ');
-    const SpecialEpisodeSource = map(SpecialEpisodeSourceMap, (count, type) => `${type} (${count})`).join(', ');
+    const SourceByType = map(
+      ByTypeMap,
+      ({ count, source }, type) => ({ type, count, source: map(source, (c, s) => `${s} (${c})`).join(', ') || 'N/A' }),
+    );
     const Groups = GroupsMap.join(', ');
 
     return {
-      TotalEpisodeCount,
       TotalEpisodeSize,
-      TotalEpisodeSource,
-      SpecialEpisodeCount,
-      SpecialEpisodeSource,
+      SourceByType,
       Groups,
     };
   }, [fileSummary]);
+
+  useEffect(() => {
+    if (!seriesId) return;
+    getFileSummary({ SeriesID: seriesId, groupBy }).catch(console.error);
+  }, [seriesId, groupBy, getFileSummary]);
 
   if (!seriesId) return null;
 
   return (
     <div className="flex gap-x-8">
-      <ShokoPanel title="Files Overview" className="w-[22.375rem] sticky top-0 shrink-0" transparent contentClassName="gap-y-8">
-        <div className="flex flex-col gap-y-1">
-          <span className="font-semibold">Episode Count</span>
-          {summary.TotalEpisodeCount}
-        </div>
-        <div className="flex flex-col gap-y-1">
-          <span className="font-semibold">Episode Source</span>
-          {summary.TotalEpisodeSource}
-        </div>
-        <div className="flex flex-col gap-y-1">
-          <span className="font-semibold">Special Count</span>
-          {summary.SpecialEpisodeCount}
-        </div>
-        <div className="flex flex-col gap-y-1">
-          <span className="font-semibold">Special Source</span>
-          {summary.SpecialEpisodeSource || 'N/A'}
-        </div>
+      <ShokoPanel
+        title="Files Overview"
+        className="sticky top-0 w-[22.375rem] shrink-0"
+        transparent
+        contentClassName="gap-y-8"
+      >
+        <Select
+          id="episodeType"
+          label="Group By"
+          value={groupBy}
+          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setGroupBy(event.target.value)}
+        >
+          <option value="">Nothing</option>
+          <option value="GroupName">+ Release Group</option>
+          <option value="GroupName,FileVersion,FileSource">+ File Source</option>
+          <option value="GroupName,FileVersion,FileSource,FileLocation">+ Location</option>
+          <option value="GroupName,FileVersion,FileSource,FileLocation,VideoCodecs,VideoBitDepth,VideoResolutuion">
+            + Video
+          </option>
+          <option value="GroupName,FileVersion,FileSource,FileLocation,VideoCodecs,VideoBitDepth,VideoResolutuion,AudioCodecs,AudioLanguages,AudioStreamCount">
+            + Audio
+          </option>
+          <option value="GroupName,FileVersion,FileSource,FileLocation,VideoCodecs,VideoBitDepth,VideoResolutuion,AudioCodecs,AudioLanguages,AudioStreamCount,SubtitleCodecs,SubtitleLanguages,SubtitleStreamCount">
+            + Subtitles
+          </option>
+        </Select>
+        {map(summary.SourceByType, ({ count, source, type }, index) => (
+          <React.Fragment key={`${type}-${index}`}>
+            <div className="flex flex-col gap-y-1">
+              <span className="font-semibold">
+                {type}
+                &nbsp;Count
+              </span>
+              {count}
+            </div>
+            <div className="flex flex-col gap-y-1">
+              <span className="font-semibold">
+                {type}
+                &nbsp;Source
+              </span>
+              {source}
+            </div>
+          </React.Fragment>
+        ))}
         <div className="flex flex-col gap-y-1">
           <span className="font-semibold">Total File Size</span>
           {prettyBytes(summary.TotalEpisodeSize, { binary: true })}
         </div>
         <div className="flex flex-col gap-y-1">
           <span className="font-semibold">Groups</span>
-          {summary.Groups}
+          {summary.Groups || 'N/A'}
         </div>
       </ShokoPanel>
 
-      <div className="flex flex-col gap-y-8 grow">
-        <div className="rounded-md bg-panel-background-transparent px-8 py-4 flex justify-between items-center border-panel-border border font-semibold text-xl">
+      <div className="flex grow flex-col gap-y-8">
+        <div className="flex items-center justify-between rounded border border-panel-border bg-panel-background-transparent px-8 py-5 text-xl font-semibold">
           Files Breakdown
-          <div><span className="text-panel-important">{fileSummary?.Groups.length || 0}</span> Source {fileSummary?.Groups.length === 1 ? 'Entry' : 'Entries'}</div>
+          <div>
+            <span className="text-panel-important">{fileSummary?.Groups.length || 0}</span>
+            &nbsp;
+            {fileSummary?.Groups.length === 1 ? 'Entry' : 'Entries'}
+          </div>
         </div>
-        {map(fileSummary?.Groups, (range, idx) => (
-          <ShokoPanel key={`range-${idx}`} className="grow" title={<Header ranges={range.RangeByType} />} transparent>
-            <div className="flex max-h-10">
-              <div className="grow flex flex-col gap-y-4 font-semibold">
-                <span>Group</span>
-                <span>Video</span>
-                <span>Location</span>
-              </div>
-              <div className="grow-[2] flex flex-col gap-y-4">
-                <span>{range.GroupName} | v{range.Version}</span>
-                <span>{range.Source} | {range.BitDepth}-bit | {range.Resolution} | {range.Width}x{range.Height} | {range.VideoCodecs} </span>
-                <span>{range.Location}</span>
-              </div>
-              <div className="grow flex flex-col gap-y-4 font-semibold">
-                <span>Total</span>
-                <span>Audio</span>
-                <span>{range.SubtitleCount > 1 ? 'Subtitles' : 'Subtitle'}</span>
-              </div>
-              <div className="grow-[2] flex flex-col gap-y-4">
-                <span>{renderSizes(range.RangeByType)}</span>
-                <span className="uppercase">{range.AudioCodecs} | {range.AudioCount > 1 ? `Multi Audio (${range.AudioLanguages.join(', ')})` : range.AudioLanguages.toString()}</span>
-                <span className="uppercase">{range.SubtitleCodecs} | {range.SubtitleCount > 1 ? `Multi Subs (${range.SubtitleLanguages.join(', ')})` : range.SubtitleLanguages.toString()}</span>
-              </div>
-            </div>
-          </ShokoPanel>
-        ))}
+        {map(fileSummary?.Groups, (range, idx) => <SummaryGroup key={`group-${idx}`} group={range} />)}
         {get(fileSummary, 'MissingEpisodes.length', 0) > 0 && (
-        <ShokoPanel disableOverflow title="Missing Files" transparent>
-          {map(fileSummary?.MissingEpisodes, episode => (
-            <div className="grid grid-cols-3 mb-4">
-              <div className="mr-12">{episode.Type} {episode.EpisodeNumber}</div>
-              <div className="flex mr-12">{find(episode.Titles, ['Language', 'en'])?.Name || '--'} (<a className="text-panel-primary" href={`https://anidb.net/episode/${episode.ID}`} target="_blank" rel="noopener noreferrer">{episode.ID}</a>)<Icon className="text-panel-primary" path={mdiOpenInNew} size={1} /></div>
-              <div>{episode.AirDate}</div>
-            </div>
-          ))}
-        </ShokoPanel>
+          <ShokoPanel title="Missing Files" transparent contentClassName="gap-y-4">
+            {map(fileSummary?.MissingEpisodes, episode => (
+              <div className="grid grid-cols-6 gap-x-12">
+                <div>
+                  {episode.Type}
+                  &nbsp;
+                  {episode.EpisodeNumber}
+                </div>
+                <div className="col-span-4">
+                  {find(episode.Titles, ['Language', 'en'])?.Name || '--'}
+                  &nbsp;(
+                  <a
+                    className="inline-flex items-center gap-x-1 text-panel-primary"
+                    href={`https://anidb.net/episode/${episode.ID}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {episode.ID}
+                    <Icon className="text-panel-primary" path={mdiOpenInNew} size={0.8333} />
+                  </a>
+                  )
+                </div>
+                <div>{episode.AirDate}</div>
+              </div>
+            ))}
+          </ShokoPanel>
         )}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+
 import MenuItem from './MenuItem';
 
 import type { MenuItemProps } from './MenuItem';
@@ -12,7 +13,7 @@ function SideMenu(props: Props) {
 
   return (
     <div className="grid grid-cols-1 gap-4">
-      {items.map(item => <MenuItem {...item} />)}
+      {items.map(item => <MenuItem key={item.label} {...item} />)}
     </div>
   );
 }

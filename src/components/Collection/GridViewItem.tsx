@@ -1,27 +1,40 @@
 import React from 'react';
-import cx from 'classnames';
 import { Link } from 'react-router-dom';
-import { Icon } from '@mdi/react';
 import { mdiPencilCircleOutline } from '@mdi/js';
+import { Icon } from '@mdi/react';
 
-import type { CollectionGroupType } from '@/core/types/api/collection';
 import BackgroundImagePlaceholderDiv from '@/components/BackgroundImagePlaceholderDiv';
+import CountIcon from '@/components/Collection/CountIcon';
 import useMainPoster from '@/hooks/useMainPoster';
 
-const CountIcon = ({ className, children, show = true }) => (
-  show ? <div className={cx('px-3 py-1 rounded font-semibold text-panel-text text-center min-w-[1.75rem] bg-opacity-85 drop-shadow-[0_4px_4px_rgba(0,0,0,0.25)]', className)}>{children}</div> : null
-);
+import type { CollectionGroupType } from '@/core/types/api/collection';
+import type { SeriesType } from '@/core/types/api/series';
 
-const GridViewItem = ({ item }: { item: CollectionGroupType }) => {
+type Props = {
+  item: CollectionGroupType | SeriesType;
+  isSeries?: boolean;
+};
+
+const GridViewItem = ({ isSeries = false, item }: Props) => {
   const mainPoster = useMainPoster(item);
-  const unwatchedCount = item.Sizes.Local.Episodes + item.Sizes.Local.Specials - item.Sizes.Watched.Episodes - item.Sizes.Watched.Specials;
-  const groupCount = item.Sizes.SeriesTypes.Movie + item.Sizes.SeriesTypes.OVA + item.Sizes.SeriesTypes.Other + item.Sizes.SeriesTypes.TV + item.Sizes.SeriesTypes.TVSpecial + item.Sizes.SeriesTypes.Unknown + item.Sizes.SeriesTypes.Web;
+  const unwatchedCount = item.Sizes.Local.Episodes + item.Sizes.Local.Specials - item.Sizes.Watched.Episodes
+    - item.Sizes.Watched.Specials;
+  let groupCount = 0;
+
+  if (!isSeries) {
+    const groupItem = item as CollectionGroupType;
+    groupCount = groupItem.Sizes.SeriesTypes.Movie + groupItem.Sizes.SeriesTypes.OVA + groupItem.Sizes.SeriesTypes.Other
+      + groupItem.Sizes.SeriesTypes.TV + groupItem.Sizes.SeriesTypes.TVSpecial + groupItem.Sizes.SeriesTypes.Unknown
+      + groupItem.Sizes.SeriesTypes.Web;
+  }
 
   const viewRouteLink = () => {
     let link = '/webui/collection/';
 
-    if (item.Size === 1) {
-      link += `series/${item.IDs.MainSeries}`;
+    if (isSeries) {
+      link += `series/${item.IDs.ID}`;
+    } else if (item.Size === 1) {
+      link += `series/${(item as CollectionGroupType).IDs.MainSeries}`;
     } else {
       link += `group/${item.IDs.ID}`;
     }
@@ -30,20 +43,29 @@ const GridViewItem = ({ item }: { item: CollectionGroupType }) => {
   };
 
   return (
-    <Link to={viewRouteLink()} key={`group-${item.IDs.ID}`}>
-      <div className="group shrink-0 w-[13.0625rem] content-center flex flex-col">
-        <BackgroundImagePlaceholderDiv image={mainPoster} className="h-[19.0625rem] rounded-md drop-shadow-[0_4px_4px_rgba(0,0,0,0.25)] border border-overlay-border mb-3 relative" hidePlaceholderOnHover zoomOnHover>
+    <Link to={viewRouteLink()}>
+      <div className="group flex w-[13.0625rem] shrink-0 flex-col content-center">
+        <BackgroundImagePlaceholderDiv
+          image={mainPoster}
+          className="relative mb-3 h-[19.0625rem] rounded-md border border-overlay-border drop-shadow-[0_4px_4px_rgba(0,0,0,0.25)]"
+          hidePlaceholderOnHover
+          zoomOnHover
+        >
           <div className="absolute right-3 top-3 z-20 flex flex-col gap-y-3">
             <CountIcon show={unwatchedCount > 0} className="bg-overlay-count-episode">{unwatchedCount}</CountIcon>
-            <CountIcon show={groupCount > 1} className="bg-overlay-count-group">{item.Size}</CountIcon>
+            {!isSeries && <CountIcon show={groupCount > 1} className="bg-overlay-count-group">{item.Size}</CountIcon>}
           </div>
-          <div className="pointer-events-none opacity-0 flex bg-overlay-background h-full p-3 group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-10">
+          <div className="pointer-events-none z-10 flex h-full bg-overlay-background p-3 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
             <Link to="#" className="h-fit">
-              <Icon path={mdiPencilCircleOutline} size="2rem" className="text-overlay-icon hover:text-overlay-icon-hover" />
+              <Icon
+                path={mdiPencilCircleOutline}
+                size="2rem"
+                className="text-overlay-icon hover:text-overlay-icon-hover"
+              />
             </Link>
           </div>
         </BackgroundImagePlaceholderDiv>
-        <p className="text-center text-sm font-semibold text-ellipsis line-clamp-1" title={item.Name}>{item.Name}</p>
+        <p className="line-clamp-1 text-ellipsis text-center text-sm font-semibold" title={item.Name}>{item.Name}</p>
       </div>
     </Link>
   );

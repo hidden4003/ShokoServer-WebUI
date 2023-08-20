@@ -1,6 +1,6 @@
-import { ImageType, RatingType } from './common';
-import { CollectionFilterType } from './collection';
-import { SeriesTitleType } from './series';
+import type { CollectionFilterType } from './collection';
+import type { ImageType, RatingType } from './common';
+import type { SeriesTitleType } from './series';
 
 export type WebuiGroupExtraTag = {
   ID: number;
@@ -38,21 +38,22 @@ export type WebuiSeriesFileSummaryType = {
 };
 
 export type WebuiSeriesFileSummaryGroupType = {
-  GroupName: string;
-  Version: number;
-  Source: string;
-  BitDepth: number;
-  Resolution: string;
-  Width: number;
-  Height: number;
-  VideoCodecs: string;
-  AudioCodecs: string;
-  AudioLanguages: string[];
-  AudioCount: number;
-  SubtitleCodecs: string;
-  SubtitleLanguages: string[];
-  SubtitleCount: number;
-  Location: string;
+  GroupName?: string;
+  GroupNameShort?: string;
+  FileVersion?: number;
+  FileSource?: string;
+  FileLocation?: string;
+  VideoCodecs?: string;
+  VideoBitDepth?: number;
+  VideoResolution?: string;
+  VideoWidth?: number;
+  VideoHeight?: number;
+  AudioCodecs?: string;
+  AudioLanguages?: string[];
+  AudioStreamCount?: number;
+  SubtitleCodecs?: string;
+  SubtitleLanguages?: string[];
+  SubtitleStreamCount?: number;
   RangeByType: {
     Other: WebuiSeriesFileSummaryRangeByType;
     Normal: WebuiSeriesFileSummaryRangeByType;
@@ -64,7 +65,7 @@ export type WebuiSeriesFileSummaryGroupType = {
     Parody: WebuiSeriesFileSummaryRangeByType;
     Interview: WebuiSeriesFileSummaryRangeByType;
     Extra: WebuiSeriesFileSummaryRangeByType;
-  }
+  };
 };
 
 export type WebuiSeriesFileSummaryRangeByType = {
@@ -86,7 +87,7 @@ export type WebuiSeriesFileSummaryMissingEpisodeType = {
     Source: string;
     Votes: number;
     Type: string;
-  }
+  };
 };
 
 export type WebuiTheme = {

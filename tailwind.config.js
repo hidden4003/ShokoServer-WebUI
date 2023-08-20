@@ -15,6 +15,11 @@ module.exports = {
     'bg-panel-danger',
     'bg-panel-warning',
     'text-panel-extra',
+    'text-toast-danger',
+    'text-toast-important',
+    'text-toast-primary',
+    'text-toast-primary-hover',
+    'text-toast-warning',
   ],
   theme: {
     transitionDuration: {
@@ -63,6 +68,7 @@ module.exports = {
         'overlay-border': 'var(--color-overlay-border)',
         'overlay-count-episode': 'var(--color-overlay-count-episode)',
         'overlay-count-group': 'var(--color-overlay-count-group)',
+        'overlay-count-text': 'var(--color-overlay-count-text)',
         'overlay-icon': 'var(--color-overlay-icon)',
         'overlay-icon-hover': 'var(--color-overlay-icon-hover)',
         'panel-background': 'var(--color-panel-background)',

@@ -1,7 +1,7 @@
-import { PaginationType } from '../api';
-import { SeriesIDsType } from './series';
-import { EpisodeIDsType } from './episode';
-import { DataSourceType } from './common';
+import type { DataSourceType } from './common';
+import type { EpisodeIDsType } from './episode';
+import type { SeriesIDsType } from './series';
+import type { PaginationType } from '@/core/types/api';
 
 type XRefsType = Array<{
   SeriesID: SeriesIDsType;
@@ -20,6 +20,7 @@ export type FileType = {
   Locations: Array<{
     ImportFolderID: number;
     RelativePath: string;
+    AbsolutePath?: string;
     IsAccessible: boolean;
   }>;
   Duration: string;
@@ -32,6 +33,7 @@ export type FileType = {
   SeriesIDs?: XRefsType;
   AniDB?: FileAniDBType;
   MediaInfo?: FileMediaInfoType;
+  AVDump: FileAVDumpType;
 };
 
 export type FileAniDBType = {
@@ -53,6 +55,21 @@ export type FileAniDBType = {
   VideoCodec: string;
   Chaptered: boolean;
   Updated: string;
+};
+
+export type FileAVDumpType = {
+  Status: 'Queued' | null;
+  LastDumpedAt: string | null;
+  LastVersion: string | null;
+} | {
+  Status: 'Running';
+  Progress: number;
+  SucceededCreqCount: number;
+  FailedCreqCount: number;
+  PendingCreqCount: number;
+  StartedAt: string;
+  LastDumpedAt: string | null;
+  LastVersion: string | null;
 };
 
 export type FileAniDBReleaseGroupType = {
@@ -87,12 +104,12 @@ export const enum FileSourceEnum {
   Camera = 'Camera',
 }
 
-export type AVDumpResultType = {
-  FullOutput: string;
-  Ed2k: string;
+export type FileLinkOneApiType = {
+  fileID: number;
+  episodeIDs: Array<number>;
 };
 
-export type FileLinkApiType = {
+export type FileLinkManyApiType = {
   fileIDs: Array<number>;
   episodeID: number;
 };
@@ -136,7 +153,7 @@ export type FileMediaInfoVideoType = {
   Codec: {
     Simplified: string;
     Raw: string;
-  }
+  };
   Format: {
     Name: string;
     Profile: string;
@@ -145,7 +162,7 @@ export type FileMediaInfoVideoType = {
     BVOP: boolean;
     QPel: boolean;
     ReferenceFrames: number;
-  }
+  };
 };
 
 export type FileMediaInfoAudioType = {
@@ -155,7 +172,7 @@ export type FileMediaInfoAudioType = {
   SamplingRate: number;
   CompressionMode: string;
   BitRate: number;
-  BitRateMode: string | null,
+  BitRateMode: string | null;
   BitDepth: number;
   ID: number;
   UID: string;
@@ -168,11 +185,11 @@ export type FileMediaInfoAudioType = {
   Codec: {
     Simplified: string;
     Raw: string;
-  },
+  };
   Format: {
     Name: string;
     AdditionalFeatures: string;
-  }
+  };
 };
 
 export type FileMediaInfoSubtitlesType = {
@@ -189,10 +206,10 @@ export type FileMediaInfoSubtitlesType = {
   Codec: {
     Simplified: string;
     Raw: string;
-  },
+  };
   Format: {
     Name: string;
-  }
+  };
 };
 
 export type FileMediaInfoChapterType = {

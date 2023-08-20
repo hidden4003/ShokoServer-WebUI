@@ -1,10 +1,10 @@
-import type { AVDumpResultType, FileLinkApiType, FileRequestType, FileType } from '@/core/types/api/file';
+import { splitV3Api } from '@/core/rtkQuery/splitV3Api';
+
 import type { ListResultType } from '@/core/types/api';
-import { splitV3Api } from '../splitV3Api';
+import type { FileLinkManyApiType, FileLinkOneApiType, FileRequestType, FileType } from '@/core/types/api/file';
 
 const fileApi = splitV3Api.injectEndpoints({
   endpoints: build => ({
-
     // Delete a file.
     deleteFile: build.mutation<void, { fileId: number, removeFolder: boolean }>({
       query: ({ fileId, ...params }) => ({
@@ -25,11 +25,12 @@ const fileApi = splitV3Api.injectEndpoints({
     }),
 
     // Run a file through AVDump and return the result.
-    postFileAVDump: build.query<AVDumpResultType, number>({
+    postFileAVDump: build.mutation<void, number>({
       query: fileId => ({
-        url: `File/${fileId}/AVDump`,
+        url: `File/${fileId}/AVDump?immediate=false`,
         method: 'POST',
       }),
+      invalidatesTags: ['AVDumpEvent'],
     }),
 
     // Rescan a file on AniDB.
@@ -49,7 +50,16 @@ const fileApi = splitV3Api.injectEndpoints({
     }),
 
     // Link multiple files to a single episode.
-    postFileLink: build.mutation<void, FileLinkApiType>({
+    postFileLinkOne: build.mutation<void, FileLinkOneApiType>({
+      query: ({ fileID, ...params }) => ({
+        url: `File/${fileID}/Link`,
+        method: 'POST',
+        body: params,
+      }),
+    }),
+
+    // Link multiple files to a single episode.
+    postFileLinkMany: build.mutation<void, FileLinkManyApiType>({
       query: params => ({
         url: 'File/Link',
         method: 'POST',
@@ -74,18 +84,19 @@ const fileApi = splitV3Api.injectEndpoints({
         url: 'File',
         params,
       }),
-      providesTags: ['FileDeleted', 'FileHashed', 'FileIgnored', 'FileMatched'],
+      providesTags: ['FileDeleted', 'FileHashed', 'FileIgnored', 'FileMatched', 'AVDumpEvent'],
     }),
   }),
 });
 
 export const {
-  useDeleteFileMutation,
-  usePutFileIgnoreMutation,
-  useLazyPostFileAVDumpQuery,
-  usePostFileRescanMutation,
-  usePostFileRehashMutation,
-  usePostFileLinkMutation,
   useDeleteFileLinkMutation,
+  useDeleteFileMutation,
   useGetFilesQuery,
+  usePostFileAVDumpMutation,
+  usePostFileLinkManyMutation,
+  usePostFileLinkOneMutation,
+  usePostFileRehashMutation,
+  usePostFileRescanMutation,
+  usePutFileIgnoreMutation,
 } = fileApi;

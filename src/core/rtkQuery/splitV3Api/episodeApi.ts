@@ -1,7 +1,8 @@
+import { splitV3Api } from '@/core/rtkQuery/splitV3Api';
+
+import type { DataSourceType } from '@/core/types/api/common';
 import type { EpisodeAniDBType, EpisodeTvDBType, EpisodeType } from '@/core/types/api/episode';
-import { FileType } from '@/core/types/api/file';
-import { DataSourceType } from '@/core/types/api/common';
-import { splitV3Api } from '../splitV3Api';
+import type { FileType } from '@/core/types/api/file';
 
 type EpisodeFilesQuery = {
   episodeId: string;
@@ -32,7 +33,7 @@ const episodeApi = splitV3Api.injectEndpoints({
     }),
     // Get the Shoko.Server.API.v3.Models.Shoko.Files for the Shoko.Server.API.v3.Models.Shoko.Episode with the given episodeID.
     getEpisodeFiles: build.query<FileType[], EpisodeFilesQuery>({
-      query: ({ episodeId, ...params }) => ({ url: `Episode/${episodeId}/File`, params }),
+      query: ({ episodeId, ...params }) => ({ url: `Episode/${episodeId}/File?includeAbsolutePaths=true`, params }),
     }),
     // Set the watched status on an episode
     postEpisodeWatched: build.mutation<void, { episodeId: string, watched: boolean }>({
@@ -62,6 +63,6 @@ export const {
   useGetEpisodeQuery,
   useGetEpisodeTvdbQuery,
   useLazyGetEpisodeFilesQuery,
-  usePostEpisodeWatchedMutation,
   usePostEpisodeHiddenMutation,
+  usePostEpisodeWatchedMutation,
 } = episodeApi;
