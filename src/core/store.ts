@@ -5,18 +5,14 @@ import { throttle } from 'lodash';
 
 import Events from './events';
 import { loadState, saveState } from './localStorage';
-import rtkQueryErrorMiddleware from './middlewares/rtkQueryError';
-import signalrMiddleware from './middlewares/signalr';
 import combinedReducer from './reducers';
-import { externalApi } from './rtkQuery/externalApi';
-import { logsApi } from './rtkQuery/logsApi';
-import { plexApi } from './rtkQuery/plexApi';
-import { splitApi } from './rtkQuery/splitApi';
-import { splitV3Api } from './rtkQuery/splitV3Api';
+import signalrMiddleware from './signalr/signalr';
 
-const rootReducer = (state, action) => {
-  if (action.type === Events.STORE_CLEAR_STATE) { // check for action type
-    globalThis.localStorage.clear();
+import type { UnknownAction } from 'redux';
+
+const rootReducer = (state: ReturnType<typeof combinedReducer>, action: UnknownAction) => {
+  if (action.type === Events.AUTH_LOGOUT) { // check for action type
+    globalThis.localStorage.removeItem('apiSession');
     globalThis.sessionStorage.clear();
     return combinedReducer(undefined, action);
   }
@@ -29,12 +25,6 @@ const store = configureStore({
   reducer: rootReducer,
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware().concat(
-      rtkQueryErrorMiddleware,
-      splitV3Api.middleware,
-      splitApi.middleware,
-      externalApi.middleware,
-      logsApi.middleware,
-      plexApi.middleware,
       signalrMiddleware,
     ),
   preloadedState: loadState(),

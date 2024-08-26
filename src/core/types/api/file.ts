@@ -3,10 +3,17 @@ import type { EpisodeIDsType } from './episode';
 import type { SeriesIDsType } from './series';
 import type { PaginationType } from '@/core/types/api';
 
-type XRefsType = Array<{
+type XRefsType = {
   SeriesID: SeriesIDsType;
-  EpisodeIDs: EpisodeIDsType;
-}>;
+  EpisodeIDs: EpisodeIDsType[];
+};
+
+type FileTypeLocation = {
+  ImportFolderID: number;
+  RelativePath: string;
+  AbsolutePath?: string;
+  IsAccessible: boolean;
+};
 
 export type FileType = {
   ID: number;
@@ -17,12 +24,7 @@ export type FileType = {
     CRC32: string;
     MD5: string;
   };
-  Locations: Array<{
-    ImportFolderID: number;
-    RelativePath: string;
-    AbsolutePath?: string;
-    IsAccessible: boolean;
-  }>;
+  Locations: FileTypeLocation[];
   Duration: string;
   ResumePosition: string | null;
   Watched: string | null;
@@ -30,7 +32,7 @@ export type FileType = {
   Created: string;
   Updated: string;
   IsVariation: boolean;
-  SeriesIDs?: XRefsType;
+  SeriesIDs?: XRefsType[];
   AniDB?: FileAniDBType;
   MediaInfo?: FileMediaInfoType;
   AVDump: FileAVDumpType;
@@ -78,16 +80,18 @@ export type FileAniDBReleaseGroupType = {
   ShortName: string;
 };
 
+type FileDetailedTypeSeriesID = {
+  SeriesID: FileIDsType;
+  EpisodeIDs: FileIDsType[];
+};
+
 export type FileDetailedType = FileType & {
-  SeriesIDs: Array<{
-    SeriesID: FileIDsType;
-    EpisodeIDs: Array<FileIDsType>;
-  }>;
+  SeriesIDs: FileDetailedTypeSeriesID[];
 };
 
 export type FileIDsType = {
   AniDB: number;
-  TvDB: Array<number>;
+  TvDB: number[];
   ID: number;
 };
 
@@ -103,16 +107,6 @@ export const enum FileSourceEnum {
   LaserDisc = 'LaserDisc',
   Camera = 'Camera',
 }
-
-export type FileLinkOneApiType = {
-  fileID: number;
-  episodeIDs: Array<number>;
-};
-
-export type FileLinkManyApiType = {
-  fileIDs: Array<number>;
-  episodeID: number;
-};
 
 export type FileMediaInfoType = {
   Title: string;
@@ -237,20 +231,16 @@ export enum FileSortCriteriaEnum {
   FileID = 16,
 }
 
-type FileIncludeType = 'false' | 'true' | 'only';
-
-export type FileRequestType = {
-  includeMissing?: FileIncludeType;
-  includeIgnored?: FileIncludeType;
-  includeVariations?: FileIncludeType;
-  includeDuplicates?: FileIncludeType;
-  includeUnrecognized?: FileIncludeType;
-  includeLinked?: FileIncludeType;
-  includeViewed?: FileIncludeType;
-  includeWatched?: FileIncludeType;
-  sortOrder?: FileSortCriteriaEnum[];
-  includeDataFrom?: DataSourceType[];
-  includeMediaInfo?: boolean;
-  includeXRefs?: boolean;
+type SeriesEpisodesQueryBaseType = {
+  includeMissing?: string;
+  includeHidden?: string;
+  includeWatched?: string;
+  type?: string;
   search?: string;
-} & PaginationType;
+  fuzzy?: boolean;
+};
+
+export type SeriesEpisodesQueryType =
+  & SeriesEpisodesQueryBaseType
+  & { includeDataFrom?: DataSourceType[] }
+  & PaginationType;

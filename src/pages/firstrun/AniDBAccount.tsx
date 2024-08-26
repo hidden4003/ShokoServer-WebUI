@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router-dom';
 
 import Input from '@/components/Input/Input';
 import TransitionDiv from '@/components/TransitionDiv';
-import { usePostAniDBTestLoginMutation } from '@/core/rtkQuery/splitV3Api/settingsApi';
+import { useAniDBTestLoginMutation } from '@/core/react-query/settings/mutations';
 import { setSaved as setFirstRunSaved, unsetSaved as unsetFirstRunSaved } from '@/core/slices/firstrun';
+import useFirstRunSettingsContext from '@/hooks/UseFirstRunSettingsContext';
 
-import { useFirstRunSettingsContext } from './FirstRunPage';
 import Footer from './Footer';
 
 import type { TestStatusType } from '@/core/slices/firstrun';
@@ -22,12 +22,12 @@ function AniDBAccount() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const [testAniDbLogin, testAniDbLoginResult] = usePostAniDBTestLoginMutation();
+  const { isPending: isAnidbLoginPending, mutate: testAniDbLogin } = useAniDBTestLoginMutation();
   const [anidbStatus, setAnidbStatus] = useState<TestStatusType>({ type: 'success', text: '' });
 
   const { Password, Username } = newSettings.AniDb;
 
-  const handleInputChange = (event: any) => {
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = event.target;
     updateSetting('AniDb', id, value);
     setAnidbStatus({ type: 'success', text: '' });
@@ -36,19 +36,23 @@ function AniDBAccount() {
 
   const handleTest = (event?: React.FormEvent) => {
     if (event) event.preventDefault();
-    testAniDbLogin({ Username, Password }).unwrap().then(async () => {
-      setAnidbStatus({ type: 'success', text: 'AniDB Test Successful!' });
-      await saveSettings();
-      dispatch(setFirstRunSaved('anidb-account'));
-      navigate('../metadata-sources');
-    }, (error) => {
-      console.error(error);
-      setAnidbStatus({ type: 'error', text: error.data });
+    testAniDbLogin({ Username, Password }, {
+      onSuccess: () => {
+        setAnidbStatus({ type: 'success', text: 'AniDB Test Successful!' });
+        saveSettings().then(() => {
+          dispatch(setFirstRunSaved('anidb-account'));
+          navigate('../metadata-sources');
+        }, () => {});
+      },
+      onError: (error) => {
+        console.error(error);
+        setAnidbStatus({ type: 'error', text: 'Failed to log in!' });
+      },
     });
   };
 
   return (
-    <TransitionDiv className="flex max-w-[38rem] flex-col justify-center gap-y-8">
+    <TransitionDiv className="flex max-w-[38rem] flex-col justify-center gap-y-6">
       <div className="text-xl font-semibold">Adding Your AniDB Account</div>
       <div className="text-justify">
         Shoko utilizes AniDB to compare file hashes with its vast database, enabling a quick identification and addition
@@ -61,12 +65,14 @@ function AniDBAccount() {
           href="https://anidb.net/"
           target="_blank"
           rel="noreferrer"
-          className="font-semibold text-panel-primary hover:underline"
+          className="font-semibold text-panel-text-primary hover:underline"
         >
-          {' Click Here '}
+          {' '}
+          Click Here
+          {' '}
         </a>
         to create one. Please note that, due to limitations with AniDB&lsquo;s API, your password must consist of only
-        <span className="font-semibold text-panel-important">{' alphanumeric '}</span>
+        <span className="font-semibold text-panel-text-important">{' alphanumeric '}</span>
         characters. Using any other characters will result in a ban when you attempt to log in.
       </div>
       <form className="flex flex-col" onSubmit={handleTest}>
@@ -92,7 +98,7 @@ function AniDBAccount() {
       <Footer
         nextDisabled={!Username || !Password}
         saveFunction={handleTest}
-        isFetching={testAniDbLoginResult.isLoading}
+        isFetching={isAnidbLoginPending}
         status={anidbStatus}
       />
     </TransitionDiv>

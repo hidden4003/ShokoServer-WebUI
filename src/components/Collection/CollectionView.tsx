@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router';
+import React, { useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import useMeasure from 'react-use-measure';
 import { mdiLoading } from '@mdi/js';
@@ -8,91 +7,88 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import cx from 'classnames';
 import { debounce } from 'lodash';
 
-import CardViewItem from '@/components/Collection/CardViewItem';
-import GridViewItem from '@/components/Collection/GridViewItem';
-import { useLazyGetGroupsQuery } from '@/core/rtkQuery/splitV3Api/collectionApi';
-import { useLazyGetGroupViewQuery } from '@/core/rtkQuery/splitV3Api/webuiApi';
+import ListViewItem from '@/components/Collection/ListViewItem';
+import PosterViewItem from '@/components/Collection/PosterViewItem';
+import { listItemSize, posterItemSize } from '@/components/Collection/constants';
+
+import type { CollectionGroupType } from '@/core/types/api/collection';
+import type { SeriesType } from '@/core/types/api/series';
+import type { WebuiGroupExtra } from '@/core/types/api/webui';
 
 type Props = {
+  groupExtras: WebuiGroupExtra[];
+  fetchNextPage: () => Promise<unknown>;
+  isFetchingNextPage: boolean;
+  isFetching: boolean;
+  isSeries: boolean;
+  isSidebarOpen: boolean;
+  items: CollectionGroupType[] | SeriesType[];
   mode: string;
-  setGroupTotal: (total: number) => void;
+  total: number;
 };
 
-const pageSize = 50;
-
 const CollectionView = (props: Props) => {
-  const { mode, setGroupTotal } = props;
-
-  const { filterId } = useParams();
+  const {
+    fetchNextPage,
+    groupExtras,
+    isFetching,
+    isFetchingNextPage,
+    isSeries,
+    isSidebarOpen,
+    items,
+    mode,
+    total,
+  } = props;
 
   const [itemWidth, itemHeight, itemGap] = useMemo(() => {
-    // Gaps are intentionally left with + notation to remove the need for calculations if dimensions are being changed
-    if (mode === 'grid') return [209 + 16, 337 + 16, 16]; // + 16 is to account for gap/margin
-    return [907 + 32, 328 + 32, 32]; // + 32 is to account for gap/margin
-  }, [mode]);
-
-  const [fetchingPage, setFetchingPage] = useState(false);
-
-  const [fetchGroups, groupsData] = useLazyGetGroupsQuery();
-  const groupPages = groupsData.data?.pages ?? {};
-  const groupTotal = groupsData.data?.total ?? 0;
-
-  const [fetchGroupExtras, groupExtrasData] = useLazyGetGroupViewQuery();
-  const groupExtras = groupExtrasData.data ?? [];
-
-  useEffect(() => {
-    setGroupTotal(groupTotal);
-  }, [groupTotal, setGroupTotal]);
-
-  const fetchPage = useMemo(() =>
-    debounce((page: number) => {
-      fetchGroups({ page, pageSize, filterId: filterId ?? '0' }).then((result) => {
-        if (!result.data) return;
-
-        const ids = result.data.pages[page].map(group => group.IDs.ID);
-        fetchGroupExtras({
-          GroupIDs: ids,
-          TagFilter: 128,
-          TagLimit: 20,
-          OrderByName: true,
-        }).then().catch(error => console.error(error));
-      }).catch(error => console.error(error)).finally(() => setFetchingPage(false));
-    }, 200), [filterId, fetchGroups, fetchGroupExtras]);
-
-  useEffect(() => {
-    fetchPage.cancel();
-    setFetchingPage(false);
-
-    fetchPage(1);
-
-    return () => fetchPage.cancel();
-  }, [filterId, fetchPage]);
+    if (mode === 'poster') return [posterItemSize.width, posterItemSize.height, posterItemSize.gap];
+    return [
+      (isSeries || isSidebarOpen) ? listItemSize.widthAlt : listItemSize.width,
+      listItemSize.height,
+      listItemSize.gap,
+    ];
+  }, [isSidebarOpen, mode, isSeries]);
 
   const { scrollRef } = useOutletContext<{ scrollRef: React.RefObject<HTMLDivElement> }>();
 
   const [gridContainerRef, gridContainerBounds] = useMeasure();
 
-  const itemsPerRow = Math.max(1, Math.floor((gridContainerBounds.width + itemGap) / itemWidth));
-  const count = useMemo(() => Math.ceil(groupTotal / itemsPerRow), [groupTotal, itemsPerRow]);
+  const [itemsPerRow, count] = useMemo(() => {
+    // + 4 is to account for scrollbar, otherwise only 7 items show up in a row at max width
+    const tempItemsPerRow = Math.max(1, Math.floor((gridContainerBounds.width + itemGap + 4) / (itemWidth + itemGap)));
+    const tempCount = Math.ceil(total / tempItemsPerRow);
+    return [tempItemsPerRow, tempCount];
+  }, [gridContainerBounds.width, itemGap, itemWidth, total]);
 
   const virtualizer = useVirtualizer({
     count,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => itemHeight,
+    estimateSize: () => itemHeight + itemGap,
     overscan: 2,
   });
+  const virtualItems = virtualizer.getVirtualItems();
 
-  if (groupTotal === 0) {
+  const fetchNextPageDebounced = useMemo(
+    () =>
+      debounce(() => {
+        fetchNextPage().catch(() => {});
+      }, 50),
+    [fetchNextPage],
+  );
+
+  if (total === 0) {
     return (
       <div
         className={cx(
-          'flex grow rounded-md items-center font-semibold justify-center',
-          mode === 'grid' && 'px-6 py-8 bg-panel-background border-panel-border border',
+          'flex grow rounded-lg items-center font-semibold justify-center max-h-screen',
+          mode === 'poster' && 'px-6 py-6 bg-panel-background border-panel-border border',
         )}
       >
-        {groupsData.isUninitialized || groupsData.isLoading
-          ? <Icon path={mdiLoading} size={3} className="text-panel-primary" spin />
-          : 'No series/groups available!'}
+        <div className="flex w-full justify-center" ref={gridContainerRef}>
+          {isFetching
+            ? <Icon path={mdiLoading} size={3} className="text-panel-text-primary" spin />
+            : 'No series/groups available!'}
+        </div>
       </div>
     );
   }
@@ -100,79 +96,73 @@ const CollectionView = (props: Props) => {
   return (
     <div
       className={cx(
-        'flex grow rounded-md',
-        mode === 'grid' && 'px-6 py-8 bg-panel-background border-panel-border border',
+        'flex grow rounded-lg',
+        mode === 'poster' && 'px-6 py-6 bg-panel-background border-panel-border border',
       )}
     >
       <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }} ref={gridContainerRef}>
         {/* Each row is considered a virtual item here instead of each group */}
-        {virtualizer.getVirtualItems().map((virtualRow) => {
-          const { index } = virtualRow;
+        {virtualItems.map((virtualRow) => {
+          const children: React.ReactNode[] = [];
 
-          const items: React.ReactNode[] = [];
           // index of the first group in the current row
           // eg., row 2 (index = 1) at 1080p (itemsPerRow = 8)
           // will have fromIndex as 8, meaning first group in row 2 is 8th in the group list
-          const fromIndex = index * itemsPerRow;
+          const fromIndex = virtualRow.index * itemsPerRow;
           // index of the last group in the current row + 1
           // same eg. as above, this will 16
           const toIndex = fromIndex + itemsPerRow;
 
-          const neededPage1 = Math.ceil((fromIndex + 1) / pageSize);
-          const neededPage2 = Math.ceil(toIndex / pageSize);
-
-          const groupList1 = groupPages[neededPage1];
-          const groupList2 = groupPages[neededPage2];
-
-          if (groupList1 === undefined && !fetchingPage) {
-            setFetchingPage(true);
-            fetchPage(neededPage1);
-          }
-
-          if (groupList2 === undefined && !fetchingPage) {
-            setFetchingPage(true);
-            fetchPage(neededPage2);
-          }
-
           // Here, i will be the actual index of the group in group list
           for (let i = fromIndex; i < toIndex; i += 1) {
-            const neededPage = Math.ceil((i + 1) / pageSize);
-            const relativeIndex = i % pageSize;
-            const groupList = groupPages[neededPage];
-
-            const item = groupList !== undefined ? groupList[relativeIndex] : undefined;
+            const item = items[i];
 
             // Placeholder to solve formatting issues.
             // Used to fill the empty "slots" in the last row
-            const isPlaceholder = i > groupTotal - 1;
+            const isPlaceholder = i > total - 1;
 
             if (isPlaceholder) {
-              items.push(
-                <div className={cx(mode === 'grid' ? 'w-[13.0625rem]' : 'w-[56.6875rem]')} key={`placeholder-${i}`} />,
-              );
-            } else if (item) {
-              items.push(
-                mode === 'grid'
-                  ? <GridViewItem item={item} key={`group-${item.IDs.ID}`} />
-                  : (
-                    <CardViewItem
-                      item={item}
-                      mainSeries={groupExtras.find(extra => extra.ID === item.IDs.ID)}
-                      key={`group-${item.IDs.ID}`}
-                    />
-                  ),
-              );
-            } else {
-              items.push(
+              children.push(
                 <div
-                  className={cx(
-                    'flex items-center justify-center text-panel-primary shrink-0 rounded-md border border-panel-border',
-                    mode === 'grid' ? 'w-[13.0625rem] h-[21.0625rem]' : 'w-[56.6875rem] h-[20.5rem]',
-                  )}
+                  key={`placeholder-${i}`}
+                  style={{
+                    width: `${itemWidth / 16}rem`,
+                  }}
+                />,
+              );
+            } else if (!item) {
+              if (!isFetchingNextPage) fetchNextPageDebounced();
+              children.push(
+                <div
+                  className="flex shrink-0 items-center justify-center rounded-lg border border-panel-border text-panel-text-primary"
                   key={`loading-${i}`}
+                  style={{
+                    width: `${itemWidth / 16}rem`,
+                    height: `${itemHeight / 16}rem`,
+                  }}
                 >
                   <Icon path={mdiLoading} spin size={3} />
                 </div>,
+              );
+            } else if (mode === 'poster') {
+              children.push(
+                <PosterViewItem
+                  key={`group-${item.IDs.ID}`}
+                  item={item}
+                  isSeries={isSeries}
+                />,
+              );
+            } else {
+              children.push(
+                <ListViewItem
+                  item={item}
+                  groupExtras={!isSeries
+                    ? groupExtras.find(extra => extra.ID === item.IDs.ID)
+                    : undefined}
+                  key={`group-${item.IDs.ID}`}
+                  isSeries={isSeries}
+                  isSidebarOpen={isSidebarOpen}
+                />,
               );
             }
           }
@@ -180,14 +170,19 @@ const CollectionView = (props: Props) => {
           return (
             <div
               className={cx(
-                'absolute top-0 left-0 w-full flex items-center justify-center last:mb-0',
-                mode === 'grid' ? 'h-[21.0625rem] gap-x-4 mb-4' : 'h-[20.5rem] gap-x-8 mb-8',
+                'absolute top-0 left-0 w-full flex items-center justify-center last:pb-0',
+                mode === 'poster'
+                  ? 'gap-x-6 pb-4'
+                  : 'gap-x-6 pb-8',
               )}
-              style={{ transform: `translateY(${virtualRow.start}px)` }}
+              style={{
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
               key={virtualRow.key}
               data-index={virtualRow.index}
+              ref={virtualizer.measureElement}
             >
-              {items}
+              {children}
             </div>
           );
         })}

@@ -3,7 +3,10 @@
     "airbnb",
     "airbnb-typescript",
     "airbnb/hooks",
-    "plugin:tailwindcss/recommended"
+    "plugin:tailwindcss/recommended",
+    "plugin:@typescript-eslint/recommended-type-checked",
+    "plugin:@typescript-eslint/stylistic-type-checked",
+    "plugin:@tanstack/eslint-plugin-query/recommended"
   ],
   "ignorePatterns": [
     "/*",
@@ -13,7 +16,7 @@
     "browser": true,
     "es6": true
   },
-  "plugins": ["import", "react", "react-hooks", "jsx-a11y", "sort-destructure-keys"],
+  "plugins": ["import", "react", "react-hooks", "jsx-a11y", "sort-destructure-keys", "react-refresh"],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "project": "./tsconfig.json"
@@ -45,10 +48,17 @@
       "error",
       "type"
     ],
+    "@typescript-eslint/array-type": "error",
     "arrow-parens": [
       "error",
       "as-needed",
       { "requireForBlockBody": true }
+    ],
+    "@typescript-eslint/prefer-nullish-coalescing": [
+      "error",
+      {
+        "ignorePrimitives": { "boolean": true }
+      }
     ],
     "implicit-arrow-linebreak": "off",
     "import/order": [
@@ -84,12 +94,21 @@
     ],
     "no-param-reassign": [
       "error",
-      { "props": true, "ignorePropertyModificationsFor": ["sliceState", "immerState"] }
+      { "props": true, "ignorePropertyModificationsFor": ["sliceState", "immerState", "draftState"] }
     ],
     "no-restricted-imports": [
       "error",
-      { "patterns": [{ "group": ["../*"], "message": "Please use @/ instead." }] }
+      {
+        "patterns": [
+          { "group": ["../*"], "message": "Please use @/ instead." },
+          { "group": ["usehooks-ts"], "importNames": ["useCopyToClipboard"], "message": "Please use copyToClipboard from @/core/util instead." }
+        ],
+        "paths": [
+          { "name": "usehooks-ts", "importNames": ["useEventCallback"], "message": "Please use @/hooks/useEventCallback instead." }
+        ]
+      }
     ],
+    "no-restricted-syntax": "off",
     "object-curly-newline": [
       "error",
       { "ImportDeclaration": { "consistent": true }}
@@ -117,6 +136,7 @@
     "react/prefer-stateless-function": "off",
     "react/prop-types": "off",
     "react/require-default-props": "off",
+    "react-refresh/only-export-components": "warn",
     "sort-destructure-keys/sort-destructure-keys": 2,
     "no-undef": "error"
   }

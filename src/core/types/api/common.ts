@@ -1,12 +1,7 @@
-export type ListResultType<T> = {
-  Total: number;
-  List: T[];
-};
-
 export type ImageType = {
   Source: ImageSourceEnum;
   Type: ImageTypeEnum;
-  ID: string;
+  ID: number;
   RelativeFilepath: null;
   Preferred: boolean;
   Width: null;
@@ -15,7 +10,7 @@ export type ImageType = {
 } | {
   Source: ImageSourceEnum;
   Type: ImageTypeEnum;
-  ID: string;
+  ID: number;
   RelativeFilepath: string;
   Preferred: boolean;
   Width: number;
@@ -25,8 +20,13 @@ export type ImageType = {
 
 export type ImagesType = {
   Posters: ImageType[];
-  Fanarts: ImageType[];
+  Backdrops: ImageType[];
   Banners: ImageType[];
+  Logos: ImageType[];
+};
+
+export type EpisodeImagesType = ImagesType & {
+  Thumbnails: ImageType[];
 };
 
 export const enum ImageSourceEnum {
@@ -40,7 +40,7 @@ export const enum ImageTypeEnum {
   Poster = 'Poster',
   Banner = 'Banner',
   Thumb = 'Thumb',
-  Fanart = 'Fanart',
+  Backdrop = 'Backdrop',
   Character = 'Character',
   Staff = 'Staff',
   Static = 'Static',
@@ -51,7 +51,7 @@ export type RatingType = {
   MaxValue: number;
   Source: string;
   Votes: number;
-  Type: string | null;
+  Type: 'Permanent' | 'Temporary';
 };
 
 export type FilterType = {
@@ -68,9 +68,9 @@ export type FilterType = {
 };
 
 export type LogLineType = {
-  timeStamp: string;
-  message: string;
-  level: string;
+  TimeStamp: string;
+  Message: string;
+  Level: string;
 };
 
 export type DataSourceType = 'AniDB' | 'TvDB' | 'TMDB' | 'Trakt' | 'MAL' | 'AniList' | 'Animeshon' | 'Kitsu';

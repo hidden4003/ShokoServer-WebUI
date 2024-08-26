@@ -1,79 +1,166 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
-import { mdiChevronDown, mdiChevronUp, mdiMagnify } from '@mdi/js';
+import { mdiLoading, mdiTagTextOutline } from '@mdi/js';
 import { Icon } from '@mdi/react';
-import cx from 'classnames';
-import { map } from 'lodash';
+import { toNumber } from 'lodash';
+import { useDebounceValue, useToggle } from 'usehooks-ts';
 
-import Input from '@/components/Input/Input';
-import ShokoPanel from '@/components/Panels/ShokoPanel';
-import { useGetSeriesTagsQuery } from '@/core/rtkQuery/splitV3Api/seriesApi';
+import AnidbDescription from '@/components/Collection/AnidbDescription';
+import TagDetailsModal from '@/components/Collection/Tags/TagDetailsModal';
+import TagsSearchAndFilterPanel from '@/components/Collection/Tags/TagsSearchAndFilterPanel';
+import { useSeriesTagsQuery } from '@/core/react-query/series/queries';
+import useEventCallback from '@/hooks/useEventCallback';
 
 import type { TagType } from '@/core/types/api/tags';
 
-function SeriesTag(props: { item: TagType }) {
-  const { item } = props;
-  const [isOpen, setIsOpen] = useState(false);
+const cleanString = (input = '') => input.replaceAll(' ', '').toLowerCase();
+
+const SingleTag = React.memo(({ onTagExpand, tag }: { tag: TagType, onTagExpand: (tag: TagType) => void }) => {
+  const emitTag = useEventCallback(() => onTagExpand(tag));
+  const tagDescription = tag.Description?.trim() ? tag.Description : 'Tag Description Not Available.';
 
   return (
     <div
-      className="flex max-w-[29.875rem] cursor-pointer flex-col gap-y-4 rounded-md border border-panel-border bg-panel-background-transparent p-8"
-      onClick={() => {
-        setIsOpen(!isOpen);
-      }}
+      className="flex h-[9.75rem] max-w-[29.875rem] cursor-pointer flex-col gap-6 rounded-lg border border-panel-border bg-panel-background-transparent p-6"
+      onClick={emitTag}
     >
-      <div className="flex justify-between text-xl font-semibold capitalize">
-        {item.Name}
-        &nbsp;
-        <Icon path={isOpen ? mdiChevronUp : mdiChevronDown} size={1} />
+      <div className="flex flex-row items-center">
+        <div className="line-clamp-2 grow text-xl font-semibold capitalize">
+          {tag.Name}
+        </div>
+        <div>
+          <Icon
+            path={mdiTagTextOutline}
+            size={1}
+            className={tag.Source === 'User' ? 'text-panel-icon-important' : 'text-panel-icon-action'}
+            data-tooltip-id="tooltip"
+            data-tooltip-content={`${tag.Source} Tag`}
+          />
+        </div>
       </div>
-      <div className={cx('leading-5', { 'line-clamp-2': !isOpen })}>{item.Description}</div>
+      <AnidbDescription
+        className="line-clamp-2"
+        text={tagDescription}
+      />
     </div>
   );
-}
+});
 
 const SeriesTags = () => {
   const { seriesId } = useParams();
 
+  const [selectedTag, setSelectedTag] = useState<TagType>();
+  const [showTagModal, toggleShowTagModal] = useToggle(false);
   const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebounceValue(cleanString(search), 200);
+  const [showSpoilers, toggleShowSpoilers] = useToggle();
+  const [tagSourceFilter, setTagSourceFilter] = useState<Set<string>>(new Set());
+  const [sort, toggleSort] = useToggle(false);
 
-  const tagsData = useGetSeriesTagsQuery({ seriesId: seriesId! }, { skip: !seriesId });
-  const tags = tagsData.data;
+  const handleInputChange = useEventCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const { checked, id: eventType, value } = event.target;
+    switch (eventType) {
+      case 'search':
+        setSearch(value);
+        break;
+      case 'AniDB':
+      case 'User':
+        setTagSourceFilter((prevState) => {
+          const tagSources = new Set(prevState);
+          if (checked) {
+            tagSources.delete(eventType);
+          } else {
+            tagSources.add(eventType);
+          }
+          return tagSources;
+        });
+        break;
+      case 'show-spoilers':
+        toggleShowSpoilers();
+        break;
+      default:
+        break;
+    }
+  });
+
+  const { data: tagsQueryData, isLoading, isSuccess } = useSeriesTagsQuery(toNumber(seriesId!), {}, !!seriesId);
+
+  const filteredTags = useMemo(
+    () =>
+      tagsQueryData?.filter((
+        { Description, IsSpoiler, Name, Source },
+      ) => (
+        !(tagSourceFilter.has(Source) || (IsSpoiler && !showSpoilers))
+        && ((debouncedSearch === '')
+          || [Name, Description].some(str => cleanString(str).match(debouncedSearch)))
+      )).sort((a, b) => (sort ? a.Name.localeCompare(b.Name) : 0)),
+    [debouncedSearch, showSpoilers, sort, tagSourceFilter, tagsQueryData],
+  );
+
+  const header = useMemo(
+    () => (
+      <div className="flex h-[6.125rem] items-center justify-between rounded-lg border border-panel-border bg-panel-background-transparent px-6 py-5">
+        <div className="flex flex-wrap text-xl font-semibold 2xl:flex-nowrap">
+          <span>Tags</span>
+          <span className="hidden px-2 2xl:inline">|</span>
+          <span>
+            {(debouncedSearch !== '' || tagSourceFilter.size > 0 || showSpoilers) && (
+              <>
+                <span className="pr-2 text-panel-text-important">
+                  {filteredTags?.length}
+                </span>
+                of&nbsp;
+              </>
+            )}
+            <span className="pr-2 text-panel-text-important">
+              {isSuccess ? tagsQueryData.length : '-'}
+            </span>
+            Tags Listed
+          </span>
+        </div>
+      </div>
+    ),
+    [debouncedSearch, filteredTags?.length, isSuccess, showSpoilers, tagSourceFilter.size, tagsQueryData?.length],
+  );
+
+  const onTagSelection = useEventCallback((tag: TagType) => {
+    setSelectedTag(tag);
+    toggleShowTagModal();
+  });
+  const clearTagSelection = useEventCallback(toggleShowTagModal);
 
   if (!seriesId) return null;
 
   return (
-    <div className="flex gap-x-8">
-      <ShokoPanel
-        title="Search & Filter"
-        className="sticky top-0 h-fit w-[25rem] shrink-0"
-        transparent
-        contentClassName="gap-y-8"
-        fullHeight={false}
-      >
-        <Input
-          id="search"
-          label="Tag search"
-          startIcon={mdiMagnify}
-          type="text"
-          placeholder="Search..."
-          value={search}
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearch(event.target.value)}
-        />
-      </ShokoPanel>
-
-      <div className="flex grow flex-col gap-y-8">
-        <div className="flex items-center justify-between rounded-md border border-panel-border bg-panel-background-transparent px-8 py-4 text-xl font-semibold">
-          Tags
-          <div>
-            <span className="text-panel-important">{tags?.length || 0}</span>
-            &nbsp;Tags Listed
-          </div>
-        </div>
-        <div className="grid grid-cols-3 gap-8">
-          {map(tags, item => <SeriesTag item={item} />)}
+    <div className="flex w-full gap-x-6">
+      <TagsSearchAndFilterPanel
+        seriesId={toNumber(seriesId)}
+        search={search}
+        tagSourceFilter={tagSourceFilter}
+        showSpoilers={showSpoilers}
+        sort={sort}
+        handleInputChange={handleInputChange}
+        toggleSort={toggleSort}
+      />
+      <div className="flex w-full flex-col gap-y-6">
+        {header}
+        <div className="flex grow flex-col gap-y-6">
+          {isLoading
+            ? (
+              <div className="flex grow items-center justify-center text-panel-text-primary">
+                <Icon path={mdiLoading} spin size={1} />
+              </div>
+            )
+            : (
+              <div className="grid grid-cols-3 gap-4 2xl:gap-6">
+                {filteredTags?.map(tag => (
+                  <SingleTag key={`${tag.Source}-${tag.ID}`} tag={tag} onTagExpand={onTagSelection} />
+                ))}
+              </div>
+            )}
         </div>
       </div>
+      <TagDetailsModal show={showTagModal} tag={selectedTag} onClose={clearTagSelection} />
     </div>
   );
 };

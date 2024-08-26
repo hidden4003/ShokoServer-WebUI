@@ -5,28 +5,39 @@ import { Icon } from '@mdi/react';
 type Props = {
   id: string;
   value: string | number;
-  onChange: (event: any) => void;
+  onChange: React.ChangeEventHandler<HTMLSelectElement>;
   className?: string;
-  children: any;
+  children: React.ReactNode;
   label?: string;
+  options?: React.ReactNode;
+  disabled?: boolean;
 };
 
-function Select(props: Props) {
+const Select = React.memo((props: Props) => {
   const {
     children,
     className,
+    disabled,
     id,
     label,
     onChange,
+    options,
     value,
   } = props;
+
+  const showTitle = label ?? options ?? false;
 
   return (
     <div className={className ?? ''}>
       <label htmlFor={id}>
-        {label && (
-          <div className="mb-3 font-semibold">
-            {label}
+        {showTitle && (
+          <div className="mb-3 flex items-center justify-between">
+            {label && (
+              <div className="font-semibold">
+                {label}
+              </div>
+            )}
+            {options}
           </div>
         )}
         <div className="relative w-auto">
@@ -34,17 +45,18 @@ function Select(props: Props) {
             id={id}
             value={value}
             onChange={onChange}
-            className="w-full appearance-none rounded border border-panel-border bg-default-background-input py-1.5 pl-2 pr-8 transition ease-in-out focus:shadow-none focus:outline-none focus:ring-2 focus:ring-inset focus:ring-panel-primary"
+            className="w-full appearance-none rounded-lg border border-panel-border bg-panel-input px-4 py-3 transition ease-in-out focus:shadow-none focus:outline-none focus:ring-2 focus:ring-inset focus:ring-panel-icon-action"
+            disabled={disabled}
           >
             {children}
           </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 py-2 pr-2">
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center py-2 pr-2 text-panel-icon">
             <Icon path={mdiChevronDown} size={1} />
           </div>
         </div>
       </label>
     </div>
   );
-}
+});
 
 export default Select;

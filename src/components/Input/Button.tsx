@@ -1,52 +1,55 @@
 import React from 'react';
+import type { PlacesType } from 'react-tooltip';
 import { mdiLoading } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import cx from 'classnames';
 
+import { buttonSizeClasses, buttonTypeClasses } from '@/components/Input/Button.utils';
+
 type Props = {
   buttonType?: string;
+  buttonSize?: string;
   className?: string;
-  children: any;
+  children: React.ReactNode;
   disabled?: boolean;
   loading?: boolean;
   loadingSize?: number;
-  onClick?: (...args: any) => void;
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
   submit?: boolean;
   tooltip?: string;
+  tooltipPlace?: PlacesType;
 };
 
-const buttonTypeClasses = {
-  primary: 'bg-button-primary hover:bg-button-primary-hover text-button-text-alt',
-  secondary: 'bg-button-secondary hover:bg-button-secondary-hover text-button-text',
-  danger: 'bg-button-danger hover:bg-button-danger-hover text-button-text-alt',
-};
-
-function Button(props: Props) {
-  const {
-    buttonType,
-    children,
-    className,
-    disabled,
-    loading,
-    loadingSize,
-    onClick,
-    submit,
-    tooltip,
-  } = props;
-
-  return (
+const Button = React.memo(
+  (
+    {
+      buttonSize = '',
+      buttonType = '',
+      children,
+      className,
+      disabled,
+      loading,
+      loadingSize,
+      onClick,
+      submit,
+      tooltip,
+      tooltipPlace,
+    }: Props,
+  ) => (
     <button
       type={submit ? 'submit' : 'button'}
-      title={tooltip}
       className={cx([
-        `${className} button font-semibold transition ease-in-out text-sm rounded focus:shadow-none focus:outline-none`,
-        buttonType !== undefined
-        && `${buttonTypeClasses[buttonType]} drop-shadow-[0_4px_4px_rgba(0,0,0,0.25)] border border-panel-border`,
+        `${className} button text-sm font-semibold transition ease-in-out rounded-lg outline-none`,
+        buttonType && `${buttonTypeClasses[buttonType]}`,
+        buttonSize && `${buttonSizeClasses[buttonSize]}`,
         loading && 'cursor-default',
-        disabled && 'opacity-50 cursor-default',
+        disabled && 'opacity-65 cursor-default',
       ])}
       onClick={onClick}
       disabled={disabled}
+      data-tooltip-id="tooltip"
+      data-tooltip-content={tooltip}
+      data-tooltip-place={tooltipPlace ?? 'top'}
     >
       {loading
         ? (
@@ -56,7 +59,7 @@ function Button(props: Props) {
         )
         : children}
     </button>
-  );
-}
+  ),
+);
 
 export default Button;

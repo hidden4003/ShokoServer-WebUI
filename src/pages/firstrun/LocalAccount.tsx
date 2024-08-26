@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 
 import Input from '@/components/Input/Input';
 import TransitionDiv from '@/components/TransitionDiv';
-import { useGetInitDefaultUserQuery, usePostInitDefaultUserMutation } from '@/core/rtkQuery/splitV3Api/initApi';
+import { useSetDefaultUserMutation } from '@/core/react-query/init/mutations';
+import { useDefaultUserQuery } from '@/core/react-query/init/queries';
 import { setSaved as setFirstRunSaved, setUser as setUserState } from '@/core/slices/firstrun';
 
 import Footer from './Footer';
@@ -15,30 +16,33 @@ function LocalAccount() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const [createUser, createUserResult] = usePostInitDefaultUserMutation();
-  const defaultUser = useGetInitDefaultUserQuery();
+  const { isPending: createUserPending, mutate: createUser } = useSetDefaultUserMutation();
+  const defaultUserQuery = useDefaultUserQuery();
   const [user, setUser] = useState({ Username: 'Default', Password: '' });
   const [userStatus, setUserStatus] = useState<TestStatusType>({ type: 'success', text: '' });
 
   useEffect(() => {
-    setUser(defaultUser.data ?? { Username: 'Default', Password: '' });
-  }, [defaultUser.data]);
+    setUser(defaultUserQuery.data ?? { Username: 'Default', Password: '' });
+  }, [defaultUserQuery.data]);
 
   const handleSave = (event?: React.FormEvent) => {
     if (event) event.preventDefault();
-    createUser(user).unwrap().then(() => {
-      setUserStatus({ type: 'success', text: 'Account Creation Successful!' });
-      dispatch(setUserState(user));
-      dispatch(setFirstRunSaved('local-account'));
-      navigate('../anidb-account');
-    }, (error) => {
-      console.error(error);
-      setUserStatus({ type: 'error', text: error.data });
+    createUser(user, {
+      onSuccess: () => {
+        setUserStatus({ type: 'success', text: 'Account Creation Successful!' });
+        dispatch(setUserState(user));
+        dispatch(setFirstRunSaved('local-account'));
+        navigate('../anidb-account');
+      },
+      onError: (error) => {
+        console.error(error);
+        setUserStatus({ type: 'error', text: error.message });
+      },
     });
   };
 
   return (
-    <TransitionDiv className="flex max-w-[38rem] flex-col justify-center gap-y-8">
+    <TransitionDiv className="flex max-w-[38rem] flex-col justify-center gap-y-6">
       <div className="text-xl font-semibold">Creating Your Account</div>
       <div className="text-justify">
         To use Shoko, you will need to create an account. This account will allow Shoko to manage links to all supported
@@ -70,7 +74,7 @@ function LocalAccount() {
       <Footer
         nextDisabled={user.Username === ''}
         saveFunction={handleSave}
-        isFetching={createUserResult.isLoading}
+        isFetching={createUserPending}
         status={userStatus}
       />
     </TransitionDiv>

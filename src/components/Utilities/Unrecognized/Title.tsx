@@ -4,7 +4,7 @@ import { mdiChevronRight } from '@mdi/js';
 import { Icon } from '@mdi/react';
 
 const TabButton = ({ id, name }: { id: string, name: string }) => (
-  <NavLink to={`../${id}`} className={({ isActive }) => (isActive ? 'text-panel-primary' : '')}>
+  <NavLink to={`../unrecognized/${id}`} className={({ isActive }) => (isActive ? 'text-panel-text-primary' : '')}>
     {name}
   </NavLink>
 );
@@ -17,7 +17,7 @@ const Title = () => (
     <div>|</div>
     <TabButton id="manually-linked-files" name="Manually Linked" />
     <div>|</div>
-    <TabButton id="ignored-files" name="Ignored Files" />
+    <TabButton id="ignored-files" name="Ignored" />
   </div>
 );
 

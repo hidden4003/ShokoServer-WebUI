@@ -1,41 +1,50 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import AnimateHeight from 'react-animate-height';
 import { useDispatch, useSelector } from 'react-redux';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  mdiChevronDown,
   mdiCogOutline,
   mdiDownloadCircleOutline,
   mdiFileDocumentAlertOutline,
+  mdiFileDocumentEditOutline,
+  mdiFileDocumentMultipleOutline,
   mdiFileQuestionOutline,
+  mdiFileSearchOutline,
   mdiFormatListBulletedSquare,
   mdiGithub,
   mdiHelpCircleOutline,
   mdiInformationOutline,
   mdiLayersTripleOutline,
   mdiLoading,
+  mdiLogout,
   mdiServer,
-  mdiTabletDashboard,
   mdiTextBoxOutline,
   mdiTools,
+  mdiViewDashboardEditOutline,
+  mdiViewDashboardOutline,
 } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import cx from 'classnames';
+import { startsWith } from 'lodash';
 import semver from 'semver';
 import { siDiscord } from 'simple-icons';
-import { useEventCallback } from 'usehooks-ts';
 
+import DashboardSettingsModal from '@/components/Dashboard/DashboardSettingsModal';
 import ActionsModal from '@/components/Dialogs/ActionsModal';
-import QueueModal from '@/components/Dialogs/QueueModal';
 import Button from '@/components/Input/Button';
+import ExternalLinkMenuItem from '@/components/Layout/ExternalLinkMenuItem';
+import LinkMenuItem from '@/components/Layout/LinkMenuItem';
+import MenuItem from '@/components/Layout/MenuItem';
 import ShokoIcon from '@/components/ShokoIcon';
 import toast from '@/components/Toast';
-import { useGetSettingsQuery } from '@/core/rtkQuery/splitV3Api/settingsApi';
-import { useGetCurrentUserQuery } from '@/core/rtkQuery/splitV3Api/userApi';
-import { useGetWebuiUpdateCheckQuery, usePostWebuiUpdateMutation } from '@/core/rtkQuery/splitV3Api/webuiApi';
-import { setLayoutEditMode, setQueueModalOpen } from '@/core/slices/mainpage';
-import { NetworkAvailability } from '@/core/types/signalr';
-import { initialSettings } from '@/pages/settings/SettingsPage';
+import Events from '@/core/events';
+import { useCheckNetworkConnectivityMutation } from '@/core/react-query/settings/mutations';
+import { useSettingsQuery } from '@/core/react-query/settings/queries';
+import { useCurrentUserQuery } from '@/core/react-query/user/queries';
+import { useUpdateWebuiMutation } from '@/core/react-query/webui/mutations';
+import { useWebuiUpdateCheckQuery } from '@/core/react-query/webui/queries';
+import { NetworkAvailabilityEnum } from '@/core/signalr/types';
+import useEventCallback from '@/hooks/useEventCallback';
 
 import AniDBBanDetectionItem from './AniDBBanDetectionItem';
 
@@ -43,34 +52,22 @@ import type { RootState } from '@/core/store';
 
 const { DEV, VITE_APPVERSION } = import.meta.env;
 
-const MenuItem = (
-  { icon, id, isHighlighted, onClick, text }: {
-    id: string;
-    text: string;
-    icon: string;
-    onClick: () => void;
-    isHighlighted: boolean;
-  },
-) => (
-  <NavLink
-    to={id}
-    key={id}
-    className={({ isActive }) => cx('flex items-center gap-x-2', (isActive || isHighlighted) && 'text-header-primary')}
-    onClick={(e) => {
-      e.preventDefault();
-      onClick();
-    }}
-  >
-    <Icon path={icon} size={0.8333} />
-    {text}
-  </NavLink>
-);
+const QueueCount = () => {
+  const queue = useSelector((state: RootState) => state.mainpage.queueStatus);
 
-const ExternalLinkMenuItem = ({ icon, url }: { url: string, icon: string }) => (
-  <a href={url} target="_blank" rel="noreferrer noopener">
-    <Icon path={icon} size={0.8333} />
-  </a>
-);
+  return (
+    <div
+      className="flex items-center gap-x-2"
+      data-tooltip-id="tooltip"
+      data-tooltip-content={`Queue Count: ${queue.TotalCount}`}
+    >
+      <Icon path={mdiServer} size={1} />
+      <span className="text-header-text-important">
+        {queue.TotalCount}
+      </span>
+    </div>
+  );
+};
 
 function TopNav() {
   const dispatch = useDispatch();
@@ -78,41 +75,50 @@ function TopNav() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  const queueItems = useSelector((state: RootState) => state.mainpage.queueStatus);
   const networkStatus = useSelector((state: RootState) => state.mainpage.networkStatus);
   const banStatus = useSelector((state: RootState) => state.mainpage.banStatus);
   const layoutEditMode = useSelector((state: RootState) => state.mainpage.layoutEditMode);
-  const showQueueModal = useSelector((state: RootState) => state.mainpage.queueModalOpen);
 
-  const settingsQuery = useGetSettingsQuery();
-  const webuiSettings = settingsQuery?.data?.WebUI_Settings ?? initialSettings.WebUI_Settings;
+  const settingsQuery = useSettingsQuery();
+  const webuiSettings = settingsQuery.data.WebUI_Settings;
 
-  const checkWebuiUpdate = useGetWebuiUpdateCheckQuery({ channel: webuiSettings.updateChannel, force: false }, {
-    skip: DEV || !settingsQuery.isSuccess,
-  });
-  const [webuiUpdateTrigger, webuiUpdateResult] = usePostWebuiUpdateMutation();
+  const checkWebuiUpdate = useWebuiUpdateCheckQuery(
+    { channel: webuiSettings.updateChannel, force: false },
+    !DEV && settingsQuery.isSuccess,
+  );
+  const {
+    isPending: isUpdateWebuiPending,
+    isSuccess: isUpdateWebuiSuccess,
+    mutate: updateWebui,
+  } = useUpdateWebuiMutation();
 
-  const currentUser = useGetCurrentUserQuery();
+  const { isPending: isNetworkCheckPending, mutate: checkNetworkConnectivity } = useCheckNetworkConnectivityMutation();
+
+  const currentUserQuery = useCurrentUserQuery();
 
   const [showUtilitiesMenu, setShowUtilitiesMenu] = useState(false);
   const [showActionsModal, setShowActionsModal] = useState(false);
+  const [showDashboardSettingsModal, setShowDashboardSettingsModal] = useState(false);
 
   const isOffline = useMemo(
-    () => !(networkStatus === NetworkAvailability.Internet || networkStatus === NetworkAvailability.PartialInternet),
+    () =>
+      !(networkStatus === NetworkAvailabilityEnum.Internet
+        || networkStatus === NetworkAvailabilityEnum.PartialInternet),
     [networkStatus],
   );
 
-  const closeModalsAndSubmenus = () => {
+  const closeModalsAndSubmenus = useEventCallback((event?: React.MouseEvent, id?: string) => {
+    if (layoutEditMode && event) {
+      event.preventDefault();
+      return;
+    }
     setShowActionsModal(false);
-    setShowUtilitiesMenu(false);
-  };
-
-  const handleQueueModalOpen = useEventCallback(() => {
-    dispatch(setQueueModalOpen(true));
+    setShowDashboardSettingsModal(false);
+    if (id !== 'utilities') setShowUtilitiesMenu(false);
   });
 
-  const handleQueueModalClose = useEventCallback(() => {
-    dispatch(setQueueModalOpen(false));
+  const handleLogout = useEventCallback(() => {
+    dispatch({ type: Events.AUTH_LOGOUT });
   });
 
   const handleWebUiUpdate = () => {
@@ -135,163 +141,226 @@ function TopNav() {
       </div>
     );
 
-    webuiUpdateTrigger(webuiSettings.updateChannel).unwrap().then(() => {
-      toast.success('', renderToast(), {
-        autoClose: false,
-        draggable: false,
-        closeOnClick: false,
-        toastId: 'webui-update',
-        className: 'w-80 ml-auto',
-      });
-    }, error => console.error(error));
+    updateWebui(webuiSettings.updateChannel, {
+      onSuccess: () =>
+        toast.success('', renderToast(), {
+          autoClose: false,
+          draggable: false,
+          closeOnClick: false,
+          toastId: 'webui-update',
+          className: 'w-80 ml-auto',
+        }),
+    });
   };
 
-  const renderLinkMenuItem = useCallback((path: string, text: string, icon: string) => (
-    <NavLink
-      to={path}
-      key={path.split('/').pop()}
-      className={({ isActive }) => cx('flex items-center gap-x-2', isActive && 'text-header-primary')}
-      onClick={closeModalsAndSubmenus}
-    >
-      <Icon path={icon} size={0.8333} />
-      {text}
-    </NavLink>
-  ), []);
-
   const webuiUpdateStatus = useMemo(() => {
-    if (webuiUpdateResult.isLoading) return 'Updating...';
-    if (checkWebuiUpdate.isFetching) return 'Checking for update';
-    return 'Update Available';
-  }, [webuiUpdateResult.isLoading, checkWebuiUpdate.isFetching]);
+    if (isUpdateWebuiPending) return 'Updating WebUI...';
+    if (checkWebuiUpdate.isFetching) return 'Checking for WebUI update';
+    return 'WebUI Update Available';
+  }, [isUpdateWebuiPending, checkWebuiUpdate.isFetching]);
 
   return (
     <>
-      <div className="z-[100] flex flex-col bg-header-background text-sm font-semibold text-header-text drop-shadow-[0_2px_2px_rgba(0,0,0,0.25)]">
-        <div className="mx-auto flex w-full max-w-[120rem] items-center justify-between px-8 py-6">
-          <div className="flex items-center gap-x-2">
-            <ShokoIcon className="w-6" />
-            <span className="mt-1 text-xl font-semibold">Shoko</span>
-          </div>
-          <div className="flex items-center gap-x-8">
+      <div
+        className={cx(
+          'z-[100] flex flex-col bg-header-background font-semibold text-header-text drop-shadow-[0_2px_2px_rgba(0,0,0,0.25)] transition-opacity',
+          layoutEditMode && 'opacity-65 pointer-events-none',
+        )}
+      >
+        <div className="mx-auto flex w-full max-w-[120rem] items-center justify-between p-6">
+          <Link to="/webui/dashboard" className="flex items-center gap-x-3">
+            <ShokoIcon className="w-20" />
+            <span className="mt-1 text-2xl font-semibold text-header-text">Shoko</span>
+          </Link>
+          <div className="flex items-center gap-x-6">
+            <QueueCount />
             <div className="flex items-center gap-x-2">
-              <div
-                className={cx(['cursor-pointer', showQueueModal ? 'text-header-primary' : undefined])}
-                onClick={handleQueueModalOpen}
-                title="Show Queue Modal"
-              >
-                <Icon path={mdiServer} size={0.8333} />
+              <div className="mr-1 flex size-8 items-center justify-center rounded-full bg-header-user-background text-xl text-header-user-text">
+                {currentUserQuery.data?.Avatar
+                  ? <img src={currentUserQuery.data?.Avatar} alt="avatar" className="size-8 rounded-full" />
+                  : currentUserQuery.data?.Username.charAt(0)}
               </div>
-              <span className="text-header-important">
-                {(queueItems.HasherQueueState.queueCount + queueItems.GeneralQueueState.queueCount
-                  + queueItems.ImageQueueState.queueCount) ?? 0}
-              </span>
-            </div>
-            <div className="flex items-center gap-x-2">
-              <div className="mr-1 flex h-8 w-8 items-center justify-center rounded-full bg-header-primary text-xl hover:bg-header-primary-hover">
-                {currentUser.data?.Avatar
-                  ? <img src={currentUser.data?.Avatar} alt="avatar" className="h-8 w-8 rounded-full" />
-                  : currentUser.data?.Username.charAt(0)}
-              </div>
-              <span>{currentUser.data?.Username}</span>
-              <Icon path={mdiChevronDown} size={0.6666} />
+              <span className="text-header-text">{currentUserQuery.data?.Username}</span>
             </div>
             <NavLink
               to="settings"
-              className={({ isActive }) => (isActive ? 'text-header-primary' : '')}
-              onClick={() => closeModalsAndSubmenus()}
+              className={({ isActive }) =>
+                cx({ 'text-header-icon-primary': isActive, 'opacity-65 pointer-events-none': layoutEditMode })}
+              onClick={closeModalsAndSubmenus}
+              data-tooltip-id="tooltip"
+              data-tooltip-content="Settings"
+              data-tooltip-place="bottom"
             >
-              <Icon path={mdiCogOutline} size={0.8333} />
+              <Icon
+                className="transition-colors hover:text-header-icon-primary"
+                path={mdiCogOutline}
+                size={1}
+              />
             </NavLink>
+            <Button
+              onClick={handleLogout}
+              tooltip="Log out"
+              tooltipPlace="bottom"
+            >
+              <Icon
+                className="transition-colors hover:text-header-icon-primary"
+                path={mdiLogout}
+                size={1}
+              />
+            </Button>
           </div>
         </div>
-        <div className="bg-header-background-alt text-header-text-alt">
-          <div className="mx-auto flex w-full max-w-[120rem] justify-between px-8 py-4">
-            <div className="flex gap-x-8">
-              {renderLinkMenuItem('dashboard', 'Dashboard', mdiTabletDashboard)}
-              <div
-                className={cx('transition-opacity flex gap-x-8', layoutEditMode && 'opacity-50 pointer-events-none')}
-              >
-                {renderLinkMenuItem('collection', 'Collection', mdiLayersTripleOutline)}
-                <MenuItem
-                  id="utilities"
-                  text="Utilities"
-                  icon={mdiTools}
-                  onClick={() => setShowUtilitiesMenu(prev => !prev)}
-                  isHighlighted={showUtilitiesMenu}
-                />
-                <MenuItem
-                  id="actions"
-                  text="Actions"
-                  icon={mdiFormatListBulletedSquare}
-                  onClick={() => setShowActionsModal(true)}
-                  isHighlighted={showActionsModal}
-                />
-                {renderLinkMenuItem('log', 'Log', mdiTextBoxOutline)}
-              </div>
+        <div className="bg-topnav-background text-topnav-text">
+          <div className="mx-auto flex w-full max-w-[120rem] justify-between px-6 py-4">
+            <div className="flex gap-x-6">
+              <LinkMenuItem
+                icon={mdiViewDashboardOutline}
+                onClick={closeModalsAndSubmenus}
+                path="dashboard"
+                text="Dashboard"
+              />
+
+              <LinkMenuItem
+                icon={mdiLayersTripleOutline}
+                onClick={closeModalsAndSubmenus}
+                path="collection"
+                text="Collection"
+              />
+              <MenuItem
+                id="utilities"
+                text="Utilities"
+                icon={mdiTools}
+                onClick={() => {
+                  closeModalsAndSubmenus(undefined, 'utilities');
+                  setShowUtilitiesMenu(prev => !prev);
+                }}
+                isHighlighted={showUtilitiesMenu || startsWith(pathname, '/webui/utilities/')}
+              />
+              <LinkMenuItem
+                onClick={closeModalsAndSubmenus}
+                icon={mdiTextBoxOutline}
+                path="log"
+                text="Log"
+              />
+              <MenuItem
+                id="actions"
+                text="Actions"
+                icon={mdiFormatListBulletedSquare}
+                onClick={() => {
+                  closeModalsAndSubmenus();
+                  setShowActionsModal(true);
+                }}
+                isHighlighted={showActionsModal}
+              />
             </div>
-            <div className="flex justify-end gap-8">
+            <div className="flex justify-end gap-6">
               {pathname === '/webui/dashboard' && (
                 <MenuItem
                   id="dashboard-settings"
                   text="Dashboard Settings"
-                  icon={mdiTabletDashboard}
+                  icon={mdiViewDashboardEditOutline}
                   onClick={() => {
-                    dispatch(setLayoutEditMode(true));
                     closeModalsAndSubmenus();
+                    setShowDashboardSettingsModal(true);
                   }}
-                  isHighlighted={layoutEditMode}
+                  isHighlighted={layoutEditMode || showDashboardSettingsModal}
                 />
               )}
               {((checkWebuiUpdate.isSuccess && semver.gt(checkWebuiUpdate.data.Version, VITE_APPVERSION))
-                || checkWebuiUpdate.isFetching) && !webuiUpdateResult.isSuccess && (
+                || checkWebuiUpdate.isFetching) && !isUpdateWebuiSuccess && (
                 <div
                   className="flex cursor-pointer items-center gap-x-2.5 font-semibold"
                   onClick={() => handleWebUiUpdate()}
                 >
                   <Icon
-                    path={checkWebuiUpdate.isFetching || webuiUpdateResult.isLoading
+                    path={checkWebuiUpdate.isFetching || isUpdateWebuiPending
                       ? mdiLoading
                       : mdiDownloadCircleOutline}
                     size={1}
-                    className={checkWebuiUpdate.isFetching || webuiUpdateResult.isLoading
-                      ? 'text-header-primary'
-                      : 'text-header-important'}
-                    spin={checkWebuiUpdate.isFetching || webuiUpdateResult.isLoading}
+                    className={checkWebuiUpdate.isFetching || isUpdateWebuiPending
+                      ? 'text-topnav-text-primary'
+                      : 'text-header-text-important'}
+                    spin={checkWebuiUpdate.isFetching || isUpdateWebuiPending}
                   />
                   <div className="flex">
-                    Web UI&nbsp;
                     {webuiUpdateStatus}
                   </div>
                 </div>
               )}
               {isOffline && (
-                <div className="flex cursor-pointer items-center gap-x-2.5 font-semibold">
-                  <Icon path={mdiInformationOutline} size={1} className="text-header-warning" />
-                  No Internet Connection.
-                </div>
+                <Button
+                  className="flex items-center gap-x-2 font-semibold"
+                  onClick={() => checkNetworkConnectivity()}
+                >
+                  {isNetworkCheckPending
+                    ? (
+                      <Icon
+                        path={mdiLoading}
+                        size={1}
+                        className="text-panel-text-primary"
+                        spin
+                      />
+                    )
+                    : (
+                      <Icon
+                        path={mdiInformationOutline}
+                        size={1}
+                        className="text-topnav-icon-warning"
+                      />
+                    )}
+                  No Internet Connection
+                </Button>
               )}
               <AniDBBanDetectionItem type="HTTP" banStatus={banStatus.http} />
               <AniDBBanDetectionItem type="UDP" banStatus={banStatus.udp} />
-              <div className="flex gap-x-5">
-                <ExternalLinkMenuItem url="https://discord.gg/vpeHDsg" icon={siDiscord.path} />
-                <ExternalLinkMenuItem url="https://docs.shokoanime.com" icon={mdiHelpCircleOutline} />
-                <ExternalLinkMenuItem url="https://github.com/ShokoAnime" icon={mdiGithub} />
+              <div className="flex items-center gap-x-5">
+                <ExternalLinkMenuItem url="https://discord.gg/vpeHDsg" icon={siDiscord.path} name="Discord" />
+                <ExternalLinkMenuItem url="https://docs.shokoanime.com" icon={mdiHelpCircleOutline} name="Docs" />
+                <ExternalLinkMenuItem url="https://github.com/ShokoAnime" icon={mdiGithub} name="GitHub" />
               </div>
             </div>
           </div>
         </div>
         <AnimateHeight
           height={showUtilitiesMenu ? 'auto' : 0}
-          className="border-t border-header-border bg-header-background-alt"
+          className="border-t border-topnav-border bg-topnav-background"
         >
-          <div className="mx-auto flex w-full max-w-[120rem] gap-x-8 px-8 py-4">
-            {renderLinkMenuItem('utilities/unrecognized', 'Unrecognized Files', mdiFileQuestionOutline)}
-            {renderLinkMenuItem('utilities/series-without-files', 'Series Without Files', mdiFileDocumentAlertOutline)}
+          <div className="mx-auto flex w-full max-w-[120rem] gap-x-6 px-6 py-4 text-sm">
+            <LinkMenuItem
+              icon={mdiFileQuestionOutline}
+              onClick={closeModalsAndSubmenus}
+              path="utilities/unrecognized"
+              text="Unrecognized Files"
+            />
+            <LinkMenuItem
+              icon={mdiFileDocumentMultipleOutline}
+              onClick={closeModalsAndSubmenus}
+              path="utilities/release-management"
+              text="Release Management"
+            />
+            <LinkMenuItem
+              icon={mdiFileDocumentAlertOutline}
+              onClick={closeModalsAndSubmenus}
+              path="utilities/series-without-files"
+              text="Series Without Files"
+            />
+            <LinkMenuItem
+              icon={mdiFileSearchOutline}
+              onClick={closeModalsAndSubmenus}
+              path="utilities/file-search"
+              text="Files Search"
+            />
+            <LinkMenuItem
+              icon={mdiFileDocumentEditOutline}
+              onClick={closeModalsAndSubmenus}
+              path="utilities/renamer"
+              text="File Rename"
+            />
           </div>
         </AnimateHeight>
       </div>
       <ActionsModal show={showActionsModal} onClose={() => setShowActionsModal(false)} />
-      <QueueModal show={showQueueModal} onClose={handleQueueModalClose} />
+      <DashboardSettingsModal show={showDashboardSettingsModal} onClose={() => setShowDashboardSettingsModal(false)} />
     </>
   );
 }

@@ -5,6 +5,7 @@ import Button from '@/components/Input/Button';
 import ModalPanel from '@/components/Panels/ModalPanel';
 import TreeView from '@/components/TreeView/TreeView';
 import { setSelectedNode, setStatus } from '@/core/slices/modals/browseFolder';
+import useEventCallback from '@/hooks/useEventCallback';
 
 import type { RootState } from '@/core/store';
 
@@ -18,24 +19,25 @@ function BrowseFolderModal(props: Props) {
   const status = useSelector((state: RootState) => state.modals.browseFolder.status);
   const selectedNode = useSelector((state: RootState) => state.modals.browseFolder.selectedNode);
 
-  const handleClose = () => dispatch(setStatus(false));
+  const handleClose = useEventCallback(() => dispatch(setStatus(false)));
 
-  const handleSelect = () => {
+  const handleSelect = useEventCallback(() => {
     if (typeof props.onSelect === 'function') {
-      props.onSelect(selectedNode.Path);
+      props.onSelect(selectedNode.path);
     }
     dispatch(setStatus(false));
-    dispatch(setSelectedNode({ id: -1, Path: '' }));
-  };
+    dispatch(setSelectedNode({ id: -1, path: '' }));
+  });
 
   return (
     <ModalPanel
       show={status}
-      className="!top-0 flex-col gap-y-8 p-8 drop-shadow-lg"
       onRequestClose={() => handleClose()}
+      header="Select Import Folder"
+      size="sm"
+      overlayClassName="!z-[90]"
     >
-      <div className="text-xl font-semibold">Select Import Folder</div>
-      <div className="rounded border border-panel-border bg-panel-background-alt p-4">
+      <div className="rounded border border-panel-border bg-panel-input p-4">
         <TreeView />
       </div>
       <div className="flex justify-end gap-x-3 font-semibold">

@@ -1,30 +1,22 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
-import { useMediaQuery } from 'react-responsive';
 import { Outlet } from 'react-router';
 import { Slide, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.min.css';
+import { Tooltip } from 'react-tooltip';
 
 import ImportFolderModal from '@/components/Dialogs/ImportFolderModal';
-import ProfileModal from '@/components/Dialogs/ProfileModal';
-import Header from '@/components/Layout/Header';
 import TopNav from '@/components/Layout/TopNav';
 import Events from '@/core/events';
-import { useGetSettingsQuery } from '@/core/rtkQuery/splitV3Api/settingsApi';
-import { initialSettings } from '@/pages/settings/SettingsPage';
+import { useSettingsQuery } from '@/core/react-query/settings/queries';
 
 function MainPage() {
   const dispatch = useDispatch();
 
-  const isSm = useMediaQuery({ minWidth: 0, maxWidth: 767 });
-
-  const settingsQuery = useGetSettingsQuery();
-  const { notifications, toastPosition } = settingsQuery.data?.WebUI_Settings ?? initialSettings.WebUI_Settings;
-
-  const [showSmSidebar, setShowSmSidebar] = useState(false);
+  const { notifications, toastPosition } = useSettingsQuery().data.WebUI_Settings;
 
   useEffect(() => {
-    dispatch({ type: Events.MAINPAGE_LOAD });
+    dispatch({ type: Events.MAINPAGE_LOADED });
   }, [dispatch]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -36,21 +28,22 @@ function MainPage() {
           position={toastPosition}
           autoClose={4000}
           transition={Slide}
-          className="mt-20 !w-[29.5rem]"
+          className="mt-32 !w-[29.5rem]"
           closeButton={false}
           icon={false}
         />
       )}
+      <Tooltip
+        id="tooltip"
+        render={({ content }) => content}
+        place="top-start"
+        className="z-[10000]"
+      />
       <div className="flex grow flex-col overflow-x-clip">
         <ImportFolderModal />
-        <ProfileModal />
         <TopNav />
-        {isSm && <Header showSidebar={showSmSidebar} setShowSidebar={setShowSmSidebar} />}
-        <div className="shoko-scrollbar scroll-gutter grow overflow-y-auto py-8" ref={scrollRef}>
-          <div
-            className="scroll-no-gutter mx-auto flex min-h-full w-full max-w-[120rem] flex-col px-8"
-            onClick={() => setShowSmSidebar(false)}
-          >
+        <div className="shoko-scrollbar scroll-gutter grow overflow-y-auto py-6 contain-strict" ref={scrollRef}>
+          <div className="scroll-no-gutter mx-auto flex min-h-full w-full max-w-[120rem] flex-col px-6">
             <Outlet context={{ scrollRef }} />
           </div>
         </div>

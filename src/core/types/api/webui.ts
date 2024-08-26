@@ -1,13 +1,8 @@
-import type { CollectionFilterType } from './collection';
 import type { ImageType, RatingType } from './common';
+import type { EpisodeTypeEnum } from './episode';
+import type { FileSourceEnum } from './file';
 import type { SeriesTitleType } from './series';
-
-export type WebuiGroupExtraTag = {
-  ID: number;
-  Name: string;
-  Weight: number;
-  Source: 'AniDB' | 'User';
-};
+import type { TagType } from './tags';
 
 export type WebuiGroupExtra = {
   ID: number;
@@ -15,7 +10,7 @@ export type WebuiGroupExtra = {
   Rating: RatingType;
   AirDate: string | null;
   EndDate: string | null;
-  Tags: Array<WebuiGroupExtraTag>;
+  Tags: TagType[];
 };
 
 export type WebuiSeriesRolePerson = {
@@ -26,13 +21,15 @@ export type WebuiSeriesRolePerson = {
 };
 
 export type WebuiSeriesDetailsType = {
-  FirstAirSeason: CollectionFilterType;
+  FirstAirSeason: string;
   Studios: WebuiSeriesRolePerson[];
   Producers: WebuiSeriesRolePerson[];
   SourceMaterial: string | null;
+  RuntimeLength: string | null;
 };
 
 export type WebuiSeriesFileSummaryType = {
+  Overview: WebuiSeriesFileSummaryOverview;
   Groups: WebuiSeriesFileSummaryGroupType[];
   MissingEpisodes: WebuiSeriesFileSummaryMissingEpisodeType[];
 };
@@ -54,18 +51,29 @@ export type WebuiSeriesFileSummaryGroupType = {
   SubtitleCodecs?: string;
   SubtitleLanguages?: string[];
   SubtitleStreamCount?: number;
-  RangeByType: {
-    Other: WebuiSeriesFileSummaryRangeByType;
-    Normal: WebuiSeriesFileSummaryRangeByType;
-    Special: WebuiSeriesFileSummaryRangeByType;
-    Trailer: WebuiSeriesFileSummaryRangeByType;
-    ThemeSong: WebuiSeriesFileSummaryRangeByType;
-    OpeningSong: WebuiSeriesFileSummaryRangeByType;
-    EndingSong: WebuiSeriesFileSummaryRangeByType;
-    Parody: WebuiSeriesFileSummaryRangeByType;
-    Interview: WebuiSeriesFileSummaryRangeByType;
-    Extra: WebuiSeriesFileSummaryRangeByType;
-  };
+  VideoHasChapters?: boolean;
+  RangeByType: WebuiSeriesFileSummaryGroupRangeByType;
+  Episodes?: {
+    ED2K: string;
+    EpisodeID: number;
+    FileID: number;
+    Number: number;
+    Size: number;
+    Type: EpisodeTypeEnum;
+  }[];
+};
+
+export type WebuiSeriesFileSummaryGroupRangeByType = {
+  Other: WebuiSeriesFileSummaryRangeByType;
+  Normal: WebuiSeriesFileSummaryRangeByType;
+  Special: WebuiSeriesFileSummaryRangeByType;
+  Trailer: WebuiSeriesFileSummaryRangeByType;
+  ThemeSong: WebuiSeriesFileSummaryRangeByType;
+  OpeningSong: WebuiSeriesFileSummaryRangeByType;
+  EndingSong: WebuiSeriesFileSummaryRangeByType;
+  Parody: WebuiSeriesFileSummaryRangeByType;
+  Interview: WebuiSeriesFileSummaryRangeByType;
+  Extra: WebuiSeriesFileSummaryRangeByType;
 };
 
 export type WebuiSeriesFileSummaryRangeByType = {
@@ -88,6 +96,22 @@ export type WebuiSeriesFileSummaryMissingEpisodeType = {
     Votes: number;
     Type: string;
   };
+};
+
+export type WebuiSeriesFileSummaryOverview = {
+  SourcesByType: WebuiSeriesFileSummarySourcesByType[];
+  TotalFileSize: number;
+  ReleaseGroups: string[];
+};
+
+export type WebuiSeriesFileSummarySourcesByType = {
+  Type: EpisodeTypeEnum;
+  Sources: WebuiSeriesFileSummarySourceCount[];
+};
+
+export type WebuiSeriesFileSummarySourceCount = {
+  Type: FileSourceEnum;
+  Count: number;
 };
 
 export type WebuiTheme = {

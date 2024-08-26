@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import cx from 'classnames';
 
 import Button from '@/components/Input/Button';
+import { useRunActionMutation } from '@/core/react-query/action/mutations';
+import useEventCallback from '@/hooks/useEventCallback';
 
 import type { TestStatusType } from '@/core/slices/firstrun';
 
@@ -19,11 +21,18 @@ type Props = {
 function Footer(props: Props) {
   const navigate = useNavigate();
 
-  const handleNext = () => {
+  const { mutate: runAction } = useRunActionMutation();
+
+  const handleNext = useEventCallback(() => {
     const { nextPage, saveFunction } = props;
     if (saveFunction) saveFunction();
     if (nextPage) navigate(`../${nextPage}`);
-  };
+  });
+
+  const handleFinish = useEventCallback(() => {
+    runAction('RunImport');
+    navigate('/webui/dashboard', { replace: true, state: { firstRun: true } });
+  });
 
   const {
     finish,
@@ -38,7 +47,7 @@ function Footer(props: Props) {
       <div
         className={cx([
           'flex items-center mb-5',
-          status?.type === 'error' ? 'text-panel-warning' : 'text-panel-important',
+          status?.type === 'error' ? 'text-panel-text-danger' : 'text-panel-text-important',
         ])}
       >
         {status?.text}
@@ -50,9 +59,9 @@ function Footer(props: Props) {
         {finish
           ? (
             <Button
-              onClick={() => navigate('/', { replace: true })}
+              onClick={handleFinish}
               buttonType="primary"
-              className="ml-6 w-1/2 py-2"
+              className="w-1/2 px-4 py-2"
               disabled={nextDisabled}
             >
               Finish
@@ -62,7 +71,7 @@ function Footer(props: Props) {
             <Button
               onClick={() => handleNext()}
               buttonType="primary"
-              className="ml-6 w-1/2 py-2"
+              className="w-1/2 px-4 py-2"
               disabled={nextDisabled || isFetching}
               loading={isFetching}
             >

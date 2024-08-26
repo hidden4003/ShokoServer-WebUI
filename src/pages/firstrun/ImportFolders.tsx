@@ -7,7 +7,8 @@ import ImportFolderModal from '@/components/Dialogs/ImportFolderModal';
 import Button from '@/components/Input/Button';
 import toast from '@/components/Toast';
 import TransitionDiv from '@/components/TransitionDiv';
-import { useDeleteImportFolderMutation, useGetImportFoldersQuery } from '@/core/rtkQuery/splitV3Api/importFolderApi';
+import { useDeleteImportFolderMutation } from '@/core/react-query/import-folder/mutations';
+import { useImportFoldersQuery } from '@/core/react-query/import-folder/queries';
 import { setSaved as setFirstRunSaved } from '@/core/slices/firstrun';
 import {
   setEdit as setImportFolderModalEdit,
@@ -28,14 +29,12 @@ const Folder = (props: ImportFolderType) => {
   } = props;
 
   const dispatch = useDispatch();
-  const [deleteFolder] = useDeleteImportFolderMutation();
+  const { mutate: deleteFolder } = useDeleteImportFolderMutation();
 
-  const handleDeleteFolder = async (folderId) => {
-    // TODO: can this be better typed?
-    const result: any = await deleteFolder({ folderId });
-    if (!result.error) {
-      toast.success('Import folder deleted!');
-    }
+  const handleDeleteFolder = (folderId: number) => {
+    deleteFolder({ folderId }, {
+      onSuccess: () => toast.success('Import folder deleted!'),
+    });
   };
 
   const flags = useMemo(() => {
@@ -64,10 +63,10 @@ const Folder = (props: ImportFolderType) => {
         {Name}
         <div className="flex gap-x-3">
           <Button onClick={() => dispatch(setImportFolderModalEdit(ID))}>
-            <Icon path={mdiPencilCircleOutline} size={1} className="text-panel-primary" />
+            <Icon path={mdiPencilCircleOutline} size={1} className="text-panel-text-primary" />
           </Button>
           <Button onClick={() => handleDeleteFolder(ID)}>
-            <Icon path={mdiMinusCircleOutline} size={1} className="text-panel-danger" />
+            <Icon path={mdiMinusCircleOutline} size={1} className="text-panel-text-danger" />
           </Button>
         </div>
       </div>
@@ -86,12 +85,12 @@ const Folder = (props: ImportFolderType) => {
 function ImportFolders() {
   const dispatch = useDispatch();
 
-  const importFolderQuery = useGetImportFoldersQuery();
+  const importFolderQuery = useImportFoldersQuery();
   const importFolders = importFolderQuery?.data ?? [] as ImportFolderType[];
 
   return (
     <>
-      <TransitionDiv className="flex max-w-[38rem] flex-col justify-center gap-y-8 overflow-y-auto">
+      <TransitionDiv className="flex max-w-[38rem] flex-col justify-center gap-y-6 overflow-y-auto">
         <div className="text-xl font-semibold">Import Folders</div>
         <div className="text-justify">
           For Shoko to function correctly, at least one import folder is required. However, you can add as many import
@@ -99,7 +98,7 @@ function ImportFolders() {
           drop destination.
         </div>
         <div className="flex font-semibold">
-          <Button onClick={() => dispatch(setImportFolderModalStatus(true))} buttonType="primary" className="px-8 py-2">
+          <Button onClick={() => dispatch(setImportFolderModalStatus(true))} buttonType="primary" className="px-6 py-2">
             Add Import Folder
           </Button>
         </div>
@@ -109,7 +108,7 @@ function ImportFolders() {
               <div className="font-semibold">
                 Current Import Folders
               </div>
-              <div className="flex max-h-[20rem] flex-col gap-y-8 overflow-y-auto">
+              <div className="flex max-h-80 flex-col gap-y-6 overflow-y-auto">
                 {importFolders.map(folder => <Folder {...folder} key={folder.ID} />)}
               </div>
             </>

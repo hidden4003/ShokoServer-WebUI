@@ -1,95 +1,85 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-import { NetworkAvailability } from '@/core/types/signalr';
+import { NetworkAvailabilityEnum } from '@/core/signalr/types';
 
-import type { AniDBBanItemType, AniDBBanType, QueueStatusType } from '@/core/types/signalr';
+import type { AniDBBanItemType, AniDBBanType, QueueStatusType } from '@/core/signalr/types';
+import type { SliceActions } from '@/core/types/util';
 import type { PayloadAction } from '@reduxjs/toolkit';
 
 type State = {
-  fetched: {
-    [key: string]: boolean;
-  };
+  fetched: Record<string, boolean>;
   queueStatus: QueueStatusType;
   banStatus: AniDBBanType;
-  networkStatus: NetworkAvailability;
-  queueModalOpen: boolean;
+  networkStatus: NetworkAvailabilityEnum;
   layoutEditMode: boolean;
+};
+
+const initialQueueStatus: QueueStatusType = {
+  Running: true,
+  WaitingCount: 0,
+  BlockedCount: 0,
+  TotalCount: 0,
+  ThreadCount: 1,
+  CurrentlyExecuting: [],
 };
 
 const mainpageSlice = createSlice({
   name: 'mainpage',
   initialState: {
     fetched: {},
-    queueStatus: {
-      HasherQueueState: {
-        state: 17,
-        description: 'Idle',
-        currentCommandID: null,
-        status: 'Idle',
-        queueCount: 0,
-      },
-      GeneralQueueState: {
-        state: 17,
-        description: 'Idle',
-        currentCommandID: null,
-        status: 'Idle',
-        queueCount: 0,
-      },
-      ImageQueueState: {
-        state: 17,
-        description: 'Idle',
-        currentCommandID: null,
-        status: 'Idle',
-        queueCount: 0,
-      },
-    },
+    queueStatus: initialQueueStatus,
     banStatus: {
       http: {
-        updateType: 2,
-        value: false,
+        UpdateType: 2,
+        Value: false,
       },
       udp: {
-        updateType: 1,
-        value: false,
+        UpdateType: 1,
+        Value: false,
       },
     } as AniDBBanType,
-    networkStatus: NetworkAvailability.Internet,
-    queueModalOpen: false,
+    networkStatus: NetworkAvailabilityEnum.Internet,
     layoutEditMode: false,
   } as State,
   reducers: {
     setFetched(sliceState, action) {
       sliceState.fetched = Object.assign({}, sliceState.fetched, { [action.payload]: true });
     },
-    setQueueStatus(sliceState, action) {
+    setQueueStatus(sliceState, action: PayloadAction<QueueStatusType>) {
       sliceState.queueStatus = Object.assign({}, sliceState.queueStatus, action.payload);
     },
+    resetQueueStatus(sliceState) {
+      sliceState.queueStatus = initialQueueStatus;
+    },
     setUdpBanStatus(sliceState, action: PayloadAction<AniDBBanItemType>) {
-      sliceState.banStatus.udp = action.payload;
+      if (sliceState.banStatus.udp.Value !== action.payload.Value) {
+        sliceState.banStatus.udp = action.payload;
+      }
     },
     setHttpBanStatus(sliceState, action: PayloadAction<AniDBBanItemType>) {
-      sliceState.banStatus.http = action.payload;
+      if (sliceState.banStatus.http.Value !== action.payload.Value) {
+        sliceState.banStatus.http = action.payload;
+      }
     },
-    setLayoutEditMode(sliceState, action) {
+    setLayoutEditMode(sliceState, action: PayloadAction<boolean>) {
       sliceState.layoutEditMode = action.payload;
     },
-    setQueueModalOpen(sliceState, action) {
-      sliceState.queueModalOpen = action.payload;
-    },
-    setNetworkStatus(sliceState, action: PayloadAction<NetworkAvailability>) {
+    setNetworkStatus(sliceState, action: PayloadAction<NetworkAvailabilityEnum>) {
       sliceState.networkStatus = action.payload;
     },
   },
 });
 
 export const {
+  resetQueueStatus,
   setFetched,
   setHttpBanStatus,
   setLayoutEditMode,
   setNetworkStatus,
-  setQueueModalOpen,
   setQueueStatus,
   setUdpBanStatus,
 } = mainpageSlice.actions;
+
+export type MainpageActionTypes = SliceActions<typeof mainpageSlice.actions>;
 
 export default mainpageSlice.reducer;

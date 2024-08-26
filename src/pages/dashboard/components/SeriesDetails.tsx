@@ -1,4 +1,5 @@
 import React, { type JSX } from 'react';
+import { Link } from 'react-router-dom';
 
 import BackgroundImagePlaceholderDiv from '@/components/BackgroundImagePlaceholderDiv';
 import useMainPoster from '@/hooks/useMainPoster';
@@ -10,17 +11,30 @@ function SeriesDetails(props: { series: SeriesType }): JSX.Element {
   const mainPoster = useMainPoster(series);
 
   return (
-    <div key={`series-${series.IDs.ID}`} className="mr-4 flex w-56 shrink-0 flex-col justify-center last:mr-0">
+    <Link
+      key={`series-${series.IDs.ID}`}
+      className="group mr-6 flex w-56 shrink-0 flex-col justify-center gap-y-3 last:mr-0"
+      to={`/webui/collection/series/${series.IDs.ID}`}
+    >
       <BackgroundImagePlaceholderDiv
         image={mainPoster}
-        className="relative mb-3 h-80 rounded border border-panel-border drop-shadow-[0_4px_4px_rgba(0,0,0,0.25)]"
+        className="h-80 rounded-lg border border-panel-border drop-shadow-md"
+        hidePlaceholderOnHover
+        overlayOnHover
+        zoomOnHover
       />
-      <p className="mb-1 truncate text-center text-sm font-semibold" title={series.Name}>{series.Name}</p>
-      <p className="truncate text-center text-sm opacity-75" title={`${series.Size} Files`}>
-        {series.Size}
-        &nbsp;Files
-      </p>
-    </div>
+      <div>
+        <p className="truncate text-center text-sm font-semibold" title={series.Name}>{series.Name}</p>
+        <p
+          className="truncate text-center text-sm font-semibold opacity-65"
+          title={`${series.Size} ${series.Size === 1 ? 'File' : 'Files'}`}
+        >
+          {series.Size}
+          &nbsp;
+          {series.Size === 1 ? 'File' : 'Files'}
+        </p>
+      </div>
+    </Link>
   );
 }
 

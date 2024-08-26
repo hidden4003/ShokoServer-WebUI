@@ -6,7 +6,7 @@ import Footer from './Footer';
 
 function DataCollection() {
   return (
-    <TransitionDiv className="flex max-w-[38rem] flex-col justify-center gap-y-8">
+    <TransitionDiv className="flex max-w-[38rem] flex-col justify-center gap-y-6">
       <div className="text-xl font-semibold">Data Collection</div>
       <div className="text-justify">
         Shoko is an open-source project that is developed by volunteers during their free time. In order to improve
@@ -15,7 +15,7 @@ function DataCollection() {
           href="https://sentry.io/"
           target="_blank"
           rel="noopener noreferrer"
-          className="font-bold text-panel-primary hover:underline"
+          className="font-bold text-panel-text-primary hover:underline"
         >
           Sentry.io
         </a>

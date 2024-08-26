@@ -2,7 +2,7 @@ import React from 'react';
 import { Transition } from '@headlessui/react';
 
 type Props = {
-  children: any;
+  children: React.ReactNode;
   className?: string;
   enter?: string;
   enterFrom?: string;
@@ -32,9 +32,10 @@ function TransitionDiv(props: Props) {
       leave={enter ?? 'transition-opacity'}
       leaveFrom={enterTo ?? 'opacity-100'}
       leaveTo={enterFrom ?? 'opacity-0'}
-      className={className}
     >
-      {children}
+      <div className={className}>
+        {children}
+      </div>
     </Transition>
   );
 }

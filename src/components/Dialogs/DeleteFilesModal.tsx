@@ -1,20 +1,31 @@
 import React, { useEffect, useMemo } from 'react';
 import { mdiMinusCircleOutline } from '@mdi/js';
 import Icon from '@mdi/react';
-import { useEventCallback } from 'usehooks-ts';
 
 import Button from '@/components/Input/Button';
 import ModalPanel from '@/components/Panels/ModalPanel';
+import useEventCallback from '@/hooks/useEventCallback';
 
 import type { FileType } from '@/core/types/api/file';
 
 type Props = {
   selectedFiles: FileType[];
   show: boolean;
-  removeFile(fileId: number): void;
-  onConfirm(): void;
-  onClose(): void;
+  removeFile(this: void, fileId: number): void;
+  onConfirm(this: void): void;
+  onClose(this: void): void;
 };
+
+const Title = ({ fileCount }: { fileCount: number }) => (
+  <div className="flex flex-row justify-between gap-x-0.5 text-xl font-semibold">
+    <div>Delete Confirmation</div>
+    <div>
+      <span className="text-panel-text-important">{fileCount}</span>
+      &nbsp;
+      {fileCount === 1 ? 'File' : 'Files'}
+    </div>
+  </div>
+);
 
 function DeleteFilesModal(props: Props) {
   const { onClose, onConfirm, removeFile, selectedFiles, show: showModal } = props;
@@ -36,7 +47,7 @@ function DeleteFilesModal(props: Props) {
             {file.Locations[0]?.RelativePath?.split(/[/\\]+/g).slice(-2).join('/')
               ?? `<missing file path for ${file.ID}>`}
           </div>
-          <div className="cursor-pointer text-panel-danger">
+          <div className="cursor-pointer text-panel-text-danger">
             <Icon path={mdiMinusCircleOutline} size={1} />
           </div>
         </div>
@@ -54,15 +65,9 @@ function DeleteFilesModal(props: Props) {
     <ModalPanel
       show={showModal}
       onRequestClose={onClose}
-      className="w-[56.875rem] flex-col gap-y-8 p-8 drop-shadow-lg"
+      size="md"
+      header={<Title fileCount={fileList.length} />}
     >
-      <div className="flex flex-row justify-between gap-x-0.5 text-xl font-semibold">
-        <div>Delete Confirmation</div>
-        <div className="flex gap-x-1">
-          <div className="text-panel-important">{fileList.length}</div>
-          &nbsp;Files
-        </div>
-      </div>
       <div className="flex flex-col gap-y-4">
         <p>
           Please confirm you would like to delete the following files. This is a destructive process and cannot be
@@ -73,7 +78,7 @@ function DeleteFilesModal(props: Props) {
         </p>
       </div>
       <div className="flex flex-row">
-        <div className="mt-2 w-full rounded-md border border-panel-border bg-panel-background-alt p-4">
+        <div className="mt-2 w-full rounded-lg border border-panel-border bg-panel-background-alt p-4">
           <div className="flex h-64 flex-col overflow-y-auto bg-panel-background-alt">
             {fileList}
           </div>

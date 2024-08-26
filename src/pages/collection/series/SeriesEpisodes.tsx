@@ -1,190 +1,258 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { useOutletContext } from 'react-router-dom';
-import { mdiEyeCheckOutline, mdiEyeOutline, mdiLoading, mdiMagnify } from '@mdi/js';
+import { mdiCloseCircleOutline, mdiEyeOutline, mdiLoading } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { debounce, toNumber } from 'lodash';
+import { useDebounceValue } from 'usehooks-ts';
 
-import SeriesEpisode from '@/components/Collection/Series/SeriesEpisode';
-import Input from '@/components/Input/Input';
-import Select from '@/components/Input/Select';
-import ShokoPanel from '@/components/Panels/ShokoPanel';
-import { useLazyGetSeriesEpisodesInfiniteQuery } from '@/core/rtkQuery/splitV3Api/seriesApi';
+import EpisodeSearchAndFilterPanel from '@/components/Collection/Episode/EpisodeSearchAndFilterPanel';
+import EpisodeSummary from '@/components/Collection/Episode/EpisodeSummary';
+import EpisodeWatchModal from '@/components/Collection/Episode/EpisodeWatchModal';
+import Button from '@/components/Input/Button';
+import toast from '@/components/Toast';
+import { useWatchSeriesEpisodesMutation } from '@/core/react-query/series/mutations';
+import { useSeriesEpisodesInfiniteQuery, useSeriesQuery } from '@/core/react-query/series/queries';
+import { EpisodeTypeEnum } from '@/core/types/api/episode';
+import { dayjs } from '@/core/util';
+import useEventCallback from '@/hooks/useEventCallback';
+import useFlattenListResult from '@/hooks/useFlattenListResult';
+
+import type { SeriesContextType } from '@/components/Collection/constants';
 
 const pageSize = 26;
 
 const SeriesEpisodes = () => {
   const { seriesId } = useParams();
-  const [search, setSearch] = useState('');
-  const [episodeFilterType, setEpisodeFilterType] = useState('Normal');
+  const [episodeFilterType, setEpisodeFilterType] = useState(EpisodeTypeEnum.Normal);
   const [episodeFilterAvailability, setEpisodeFilterAvailability] = useState('false');
   const [episodeFilterWatched, setEpisodeFilterWatched] = useState('true');
   const [episodeFilterHidden, setEpisodeFilterHidden] = useState('false');
-  const [fetchingPage, setFetchingPage] = useState(false);
-  const [fetchEpisodes, episodesData] = useLazyGetSeriesEpisodesInfiniteQuery();
-  const episodePages = episodesData.data?.pages ?? {};
-  const episodeTotal = episodesData.data?.total ?? 0;
+  const [showOptionsModal, setShowOptionsModal] = useState(false);
+  const [selectedEpisodes, setSelectedEpisodes] = useState<Set<number>>(new Set());
+  const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebounceValue(search, 200);
 
-  const { scrollRef } = useOutletContext<{ scrollRef: React.RefObject<HTMLDivElement> }>();
+  const onSearchChange = useEventCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(event.target.value);
+  });
+  const onFilterChange = useEventCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
+    const { id: eventType, value } = event.target;
+    switch (eventType) {
+      case 'episodeType':
+        setEpisodeFilterType(value as EpisodeTypeEnum);
+        break;
+      case 'status':
+        setEpisodeFilterAvailability(value);
+        break;
+      case 'watched':
+        setEpisodeFilterWatched(value);
+        break;
+      case 'hidden':
+        setEpisodeFilterHidden(value);
+        break;
+      default:
+        break;
+    }
+  });
+  const onSelectionChange = useEventCallback((episodeId: number) => {
+    setSelectedEpisodes((prevState) => {
+      const selectionList = new Set(prevState);
+      if (!selectionList.delete(episodeId)) selectionList.add(episodeId);
+      return selectionList;
+    });
+  });
+
+  useEffect(() => {
+    setSelectedEpisodes(new Set());
+  }, [episodeFilterType, episodeFilterAvailability, episodeFilterWatched, episodeFilterHidden, debouncedSearch]);
+
+  const seriesQueryData = useSeriesQuery(toNumber(seriesId!), { includeDataFrom: ['AniDB'] }, !!seriesId).data;
+  const seriesEpisodesQuery = useSeriesEpisodesInfiniteQuery(
+    toNumber(seriesId!),
+    {
+      includeMissing: episodeFilterAvailability,
+      includeHidden: episodeFilterHidden,
+      type: [episodeFilterType],
+      includeWatched: episodeFilterWatched,
+      includeDataFrom: ['AniDB'],
+      search: debouncedSearch,
+      pageSize,
+    },
+    !!seriesId,
+  );
+  const {
+    data,
+    fetchNextPage,
+    isFetchingNextPage,
+    isPending,
+    isSuccess,
+  } = seriesEpisodesQuery;
+  const [episodes, episodeCount] = useFlattenListResult(data);
+
+  const { mutate: watchEpisode } = useWatchSeriesEpisodesMutation();
+
+  const anidbSeriesId = useMemo(() => seriesQueryData?.IDs.AniDB ?? 0, [seriesQueryData]);
+
+  const hasMissingEpisodes = useMemo(
+    () => ((seriesQueryData?.Sizes.Missing.Episodes ?? 0) > 0),
+    [seriesQueryData?.Sizes],
+  );
+
+  const startDate = useMemo(
+    () => (seriesQueryData?.AniDB?.AirDate != null ? dayjs(seriesQueryData?.AniDB?.AirDate) : null),
+    [seriesQueryData],
+  );
+  const endDate = useMemo(
+    () => (seriesQueryData?.AniDB?.EndDate != null ? dayjs(seriesQueryData?.AniDB?.EndDate) : null),
+    [seriesQueryData],
+  );
+  const hasUnairedEpisodes = useMemo(
+    () => (!!startDate && (endDate === null || endDate.isAfter(dayjs()))),
+    [startDate, endDate],
+  );
+
+  const { scrollRef } = useOutletContext<SeriesContextType>();
 
   const rowVirtualizer = useVirtualizer({
-    count: episodeTotal,
+    count: episodeCount,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 332, // 332px is the minimum height of a loaded row
+    estimateSize: () => 370, // 370px is the minimum height of a loaded row
     overscan: 5,
+    gap: 16,
   });
   const virtualItems = rowVirtualizer.getVirtualItems();
 
-  const fetchPage = useMemo(() =>
-    debounce((page: number) => {
-      fetchEpisodes({
-        seriesID: toNumber(seriesId),
-        includeMissing: episodeFilterAvailability,
-        includeHidden: episodeFilterHidden,
-        type: episodeFilterType,
-        includeWatched: episodeFilterWatched,
-        includeDataFrom: ['AniDB', 'TvDB'],
-        page,
-        search,
-        pageSize,
-      }).then().catch(error => console.error(error)).finally(() => setFetchingPage(false));
-    }, 200), [
-    search,
-    episodeFilterAvailability,
-    episodeFilterType,
-    episodeFilterWatched,
-    episodeFilterHidden,
-    seriesId,
-    fetchEpisodes,
-  ]);
+  const fetchNextPageDebounced = useMemo(
+    () =>
+      debounce(() => {
+        fetchNextPage().catch(() => {});
+      }, 50),
+    [fetchNextPage],
+  );
 
-  useEffect(() => {
-    // Cancel fetch if query params change
-    fetchPage.cancel();
-    setFetchingPage(false);
+  const handleMarkWatched = useEventCallback((watched: boolean) => {
+    watchEpisode({
+      seriesId: toNumber(seriesId),
+      includeMissing: episodeFilterAvailability,
+      includeHidden: episodeFilterHidden,
+      type: [episodeFilterType],
+      includeWatched: episodeFilterWatched,
+      value: watched,
+      search: debouncedSearch,
+    }, {
+      onSuccess: () => toast.success(`Episodes marked as ${watched ? 'watched' : 'unwatched'}!`),
+      onError: () => toast.error(`Failed to mark episodes as ${watched ? 'watched' : 'unwatched'}!`),
+    });
+  });
 
-    // Fetch first page if query params change as new data is required
-    fetchPage(1);
+  const markFilteredWatched = useEventCallback(() => handleMarkWatched(true));
+  const markFilteredUnwatched = useEventCallback(() => handleMarkWatched(false));
 
-    return () => fetchPage.cancel();
-  }, [search, episodeFilterAvailability, episodeFilterType, episodeFilterWatched, fetchPage]);
+  const resetSelection = useEventCallback(() => setSelectedEpisodes(new Set()));
+
+  const openOptionsModal = useEventCallback(() => setShowOptionsModal(true));
 
   return (
-    <div className="flex gap-x-8">
-      <ShokoPanel title="Search & Filter" className="sticky top-0 w-[25rem]" transparent contentClassName="gap-y-8">
-        <Input
-          id="search"
-          label="Title Search"
-          startIcon={mdiMagnify}
-          type="text"
-          placeholder="Search..."
-          value={search}
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearch(event.target.value)}
-        />
-        <Select
-          id="episodeType"
-          label="Episode Type"
-          value={episodeFilterType}
-          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setEpisodeFilterType(event.currentTarget.value)}
-        >
-          <option value="">All</option>
-          <option value="Normal">Normal</option>
-          <option value="Special">Specials</option>
-          <option value="Other">Others</option>
-          <option value="Unknown,ThemeVideo,Trailer,Parody">Misc.</option>
-        </Select>
-        <Select
-          id="status"
-          label="Availability"
-          value={episodeFilterAvailability}
-          onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-            setEpisodeFilterAvailability(event.currentTarget.value)}
-        >
-          <option value="true">All</option>
-          <option value="false">Available</option>
-          <option value="only">Missing</option>
-        </Select>
-        <Select
-          id="watched"
-          label="Watched Status"
-          value={episodeFilterWatched}
-          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setEpisodeFilterWatched(event.currentTarget.value)}
-        >
-          <option value="true">All</option>
-          <option value="only">Watched</option>
-          <option value="false">Unwatched</option>
-        </Select>
-        <Select
-          id="hidden"
-          label="Hidden Status"
-          value={episodeFilterHidden}
-          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setEpisodeFilterHidden(event.currentTarget.value)}
-        >
-          <option value="true">All</option>
-          <option value="false">Not Hidden</option>
-          <option value="only">Hidden</option>
-        </Select>
-      </ShokoPanel>
+    <div className="flex w-full gap-x-6">
+      <EpisodeSearchAndFilterPanel
+        onSearchChange={onSearchChange}
+        onFilterChange={onFilterChange}
+        search={search}
+        episodeFilterType={episodeFilterType}
+        episodeFilterAvailability={episodeFilterAvailability}
+        episodeFilterWatched={episodeFilterWatched}
+        episodeFilterHidden={episodeFilterHidden}
+        hasUnaired={hasUnairedEpisodes}
+        hasMissing={hasMissingEpisodes}
+      />
       <div className="flex grow flex-col gap-y-4">
-        <div className="flex items-center justify-between rounded-md border border-panel-border bg-panel-background-transparent px-8 py-4">
-          <div className="text-xl font-semibold">
-            Episodes
-            <span className="px-2">|</span>
-            <span className="pr-2 text-panel-important">
-              {episodesData.isUninitialized || episodesData.isLoading ? '-' : episodeTotal}
+        <div className="flex h-[6.125rem] items-center justify-between rounded-lg border border-panel-border bg-panel-background-transparent px-6 py-4">
+          <div className="flex flex-wrap text-xl font-semibold 2xl:flex-nowrap">
+            <span>Episodes</span>
+            <span className="hidden px-2 2xl:inline">|</span>
+            <span>
+              <span className="pr-2 text-panel-text-important">
+                {isSuccess ? episodeCount : '-'}
+              </span>
+              Entries Listed
+              {selectedEpisodes.size > 0 && (
+                <>
+                  &nbsp;|&nbsp;
+                  <span className="text-panel-text-important">
+                    {selectedEpisodes.size}
+                  </span>
+                  &nbsp;Entries Selected
+                </>
+              )}
             </span>
-            Entries Listed
           </div>
-          <div className="flex gap-x-3">
-            <div className="flex gap-x-2">
-              <Icon path={mdiEyeCheckOutline} size={1} />
-              <span>Mark Filtered As Watched</span>
-            </div>
-            <div className="flex gap-x-2">
+          <div className="flex flex-row gap-x-2">
+            {selectedEpisodes.size > 0 && (
+              <Button buttonType="secondary" buttonSize="normal" className="flex gap-x-2" onClick={resetSelection}>
+                <Icon path={mdiCloseCircleOutline} size={1} />
+                Cancel Selection
+              </Button>
+            )}
+            <Button buttonType="secondary" buttonSize="normal" className="flex gap-x-2" onClick={openOptionsModal}>
               <Icon path={mdiEyeOutline} size={1} />
-              <span>Mark Filtered Unwatched</span>
-            </div>
+              Options
+            </Button>
           </div>
         </div>
-        {episodeTotal !== 0 && (
-          <div className="grow">
-            <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
-              <div
-                className="absolute left-0 top-0 flex w-full flex-col gap-y-4"
-                style={{ transform: `translateY(${virtualItems[0]?.start ?? 0}px)` }}
-              >
+        <div className="grow">
+          {isPending
+            ? (
+              <div className="flex h-full items-center justify-center text-panel-text-primary">
+                <Icon path={mdiLoading} spin size={4} />
+              </div>
+            )
+            : (
+              <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
                 {virtualItems.map((virtualItem) => {
-                  const { index } = virtualItem;
-                  const neededPage = Math.ceil((index + 1) / pageSize);
-                  const relativeIndex = index % pageSize;
-                  const episodeList = episodePages[neededPage];
-                  const item = episodeList !== undefined ? episodeList[relativeIndex] : undefined;
-                  if (episodeList === undefined && !fetchingPage) {
-                    setFetchingPage(true);
-                    fetchPage(neededPage);
-                  }
+                  const page = Math.ceil((virtualItem.index + 1) / pageSize);
+                  const episode = episodes[virtualItem.index];
+
+                  if (!episode && !isFetchingNextPage) fetchNextPageDebounced();
+
                   return (
                     <div
-                      key={virtualItem.key}
-                      ref={rowVirtualizer.measureElement}
-                      className="flex flex-col rounded-md border border-panel-border bg-panel-background-transparent"
+                      key={episode ? episode.IDs.ID : `loading-${virtualItem.key}`}
+                      className="absolute left-0 top-0 flex w-full flex-col rounded-lg border border-panel-border bg-panel-background-transparent"
                       data-index={virtualItem.index}
+                      style={{ transform: `translateY(${virtualItem.start ?? 0}px)` }}
+                      ref={rowVirtualizer.measureElement}
                     >
-                      {item ? <SeriesEpisode episode={item} /> : (
-                        // 332px is the minimum height of a loaded row
-                        <div className="flex h-[332px] items-center justify-center p-8 text-panel-primary">
-                          <Icon path={mdiLoading} spin size={3} />
-                        </div>
-                      )}
+                      {episode
+                        ? (
+                          <EpisodeSummary
+                            selected={selectedEpisodes.has(episode.IDs.ID)}
+                            onSelectionChange={() => onSelectionChange(episode.IDs.ID)}
+                            seriesId={toNumber(seriesId)}
+                            anidbSeriesId={anidbSeriesId}
+                            episode={episode}
+                            page={page}
+                          />
+                        )
+                        : (
+                          <div className="flex h-[20.75rem] items-center justify-center p-6 text-panel-text-primary">
+                            <Icon path={mdiLoading} spin size={3} />
+                          </div>
+                        )}
                     </div>
                   );
                 })}
               </div>
-            </div>
-          </div>
-        )}
+            )}
+        </div>
       </div>
+      <EpisodeWatchModal
+        show={showOptionsModal}
+        onRequestClose={() => setShowOptionsModal(false)}
+        markFilteredWatched={markFilteredWatched}
+        markFilteredUnwatched={markFilteredUnwatched}
+      />
     </div>
   );
 };

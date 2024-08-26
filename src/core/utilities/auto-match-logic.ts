@@ -25,11 +25,12 @@ export type PathMatchRule = {
   parentRegex?: RegExp;
   grandParentRegex?: RegExp;
   transform?(
+    this: void,
     pathDetails: PathDetails,
     match: RegExpExecArray,
     parentMatch: RegExpExecArray | null,
     grandparentMatch: RegExpExecArray | null,
-  ): PathDetails | null;
+  ): PathDetails | null | false;
   defaults?: Partial<PathDetails>;
 };
 
@@ -67,19 +68,23 @@ export function detectShow(filePath: string | undefined | null): PathDetails | n
   else if (fileName && DriveLetterRegex.test(fileName)) fileName = null;
   if (!fileName) return null;
 
-  for (let index = 0; index < PathMatchRuleSet.length; index += 1) {
-    // TODO: I couldn't find a dprint setting to make the = go to next line. This needs to be fixed.
-    /* eslint-disable-next-line operator-linebreak */
-    const { defaults = {}, grandParentRegex, name: ruleName, parentRegex, regex, transform = noopTransform } =
-      PathMatchRuleSet[index];
+  for (const rule of PathMatchRuleSet) {
+    const {
+      defaults = {},
+      grandParentRegex,
+      name: ruleName,
+      parentRegex,
+      regex,
+      transform = noopTransform,
+    } = rule;
     const match = fileName ? regex.exec(fileName) : null;
     const parentMatch = parentRegex && parentDir ? parentRegex.exec(parentDir) : null;
     const grandParentMatch = grandParentRegex && grandParentDir ? grandParentRegex.exec(grandParentDir) : null;
-    if (match && match.groups) {
+    if (match?.groups) {
       // We accept specials in-between episodes or episode ranges, so we split
       // the range and parse the text as floats.
       let [episodeStart = 1, episodeEnd = episodeStart] = match.groups.episode?.split('-').filter(s => s)
-        .map(parseFloat) ?? [];
+        .map<number>(parseFloat) ?? new Array<number>();
 
       // Swap episode numbers if they're reversed.
       if (episodeEnd - episodeStart < 0) {
@@ -122,40 +127,46 @@ export function detectShow(filePath: string | undefined | null): PathDetails | n
       };
 
       // Inherit show name and release group from grand parent or parent.
-      if (grandParentMatch && grandParentMatch.groups && parentMatch && parentMatch.groups) {
+      if (grandParentMatch?.groups && parentMatch?.groups) {
         const releaseGroup = grandParentMatch.groups.releaseGroup || null;
         if (releaseGroup) initialDetails.releaseGroup = releaseGroup;
         showName = grandParentMatch.groups.showName?.trim() || null;
         if (showName && showName) initialDetails.showName = showName;
       }
-      if (parentMatch && parentMatch.groups) {
+      if (parentMatch?.groups) {
         const releaseGroup = parentMatch.groups.releaseGroup || null;
         if (releaseGroup) initialDetails.releaseGroup = releaseGroup;
         showName = parentMatch.groups.showName?.trim() || null;
         if (showName && showName) initialDetails.showName = showName;
       }
 
-      // Transform the details if the rule has a trasformer/validator.
+      // Transform the details if the rule has a transformer/validator.
       const finalDetails = transform(initialDetails, match, parentMatch, grandParentMatch);
 
-      // Since the transformer also can return null (to invalidte the match)
-      // then we need to check if the transformed details before returning.
+      // Since the transformer also can return null (to invalidate the match)
+      // then we need to check the transformed details before returning.
       if (finalDetails) {
         return finalDetails;
+      }
+
+      // Break the loop if we receive `null`, continue the loop if we receive
+      // `false`.
+      if (finalDetails === null) {
+        break;
       }
     }
   }
   return null;
 }
 
-export function findMostCommonShowName(showList: Array<PathDetails | null>): string {
+export function findMostCommonShowName(showList: (PathDetails | null)[]): string {
   if (showList.length === 0) {
     return '';
   }
 
   const showNameMap = reduce(showList, (acc, show) => {
-    if (show && show.showName) {
-      acc.set(show.showName, (acc.get(show.showName) || 0) + 1);
+    if (show?.showName) {
+      acc.set(show.showName, (acc.get(show.showName) ?? 0) + 1);
     }
     return acc;
   }, new Map<string, number>());
@@ -179,7 +190,7 @@ export function findMostCommonShowName(showList: Array<PathDetails | null>): str
     return showNames[0];
   }
 
-  return reduce(showNames, (a, b) => (showNameMap.get(a)! > showNameMap.get(b)! ? a : b), showNames[0])!;
+  return reduce(showNames, (a, b) => (showNameMap.get(a)! > showNameMap.get(b)! ? a : b), showNames[0]);
 }
 
 function findSharedShowName(showNames: string[]): string {

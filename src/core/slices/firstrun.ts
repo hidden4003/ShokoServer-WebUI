@@ -9,9 +9,7 @@ export type TestStatusType = {
 };
 
 type State = {
-  saved: {
-    [key: string]: boolean;
-  };
+  saved: Record<string, boolean>;
   user: UserType;
 };
 
@@ -27,7 +25,7 @@ const firstrunSlice = createSlice({
     setSaved(sliceState, action: PayloadAction<string>) {
       sliceState.saved = Object.assign({}, sliceState.saved, { [action.payload]: true });
     },
-    setUser(sliceState, action: PayloadAction<any>) {
+    setUser(sliceState, action: PayloadAction<UserType>) {
       sliceState.user = Object.assign({}, sliceState.user, action.payload);
     },
     unsetSaved(sliceState, action: PayloadAction<string>) {

@@ -1,4 +1,5 @@
 import React from 'react';
+import { createRoutesFromChildren, matchRoutes, useLocation, useNavigationType } from 'react-router-dom';
 import * as Sentry from '@sentry/react';
 import { createRoot } from 'react-dom/client';
 
@@ -10,21 +11,28 @@ if (!isDebug()) {
   Sentry.init({
     dsn: 'https://f607489ccc764d73aeaed81ab2c97c04@o330862.ingest.sentry.io/1851857',
     environment: 'production',
-    release: uiVersion(),
+    release: `shoko-webui@${uiVersion()}`,
     integrations: [
-      new Sentry.BrowserTracing(),
-      new Sentry.Replay({
+      Sentry.reactRouterV6BrowserTracingIntegration({
+        useEffect: React.useEffect,
+        useLocation,
+        useNavigationType,
+        createRoutesFromChildren,
+        matchRoutes,
+      }),
+      Sentry.replayIntegration({
+        networkDetailAllowUrls: ['/api/v3/Init/Version'],
         maskAllText: true,
         blockAllMedia: false,
       }),
     ],
-    tracesSampleRate: 1.0,
-    replaysSessionSampleRate: 0.1,
+    tracesSampleRate: 0.1,
+    replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 1.0,
   });
 }
 
-const container = document && document.getElementById('app-root');
+const container = document?.getElementById('app-root');
 
 if (container !== null) {
   const root = createRoot(container);

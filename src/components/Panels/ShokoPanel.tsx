@@ -5,15 +5,16 @@ import cx from 'classnames';
 
 type Props = {
   title: ReactNode;
-  children: any;
-  options?: any;
+  children: React.ReactNode;
+  options?: React.ReactNode;
   className?: string;
   isFetching?: boolean;
   editMode?: boolean;
   fullHeight?: boolean;
   disableOverflow?: boolean;
   transparent?: boolean;
-  contentClassName?: string;
+  contentClassName?: string | boolean;
+  sticky?: boolean;
 };
 
 const ShokoPanel = (
@@ -26,20 +27,22 @@ const ShokoPanel = (
     fullHeight = true,
     isFetching,
     options,
+    sticky,
     title,
     transparent = false,
   }: Props,
 ) => (
   <div
     className={cx(
-      'flex flex-col overflow-hidden transition-colors border rounded p-8',
+      'flex flex-col transition-colors border rounded-lg p-6 gap-y-6',
       fullHeight && 'h-full',
-      editMode ? 'pointer-events-none border-panel-primary' : 'border-panel-border',
+      editMode ? 'pointer-events-none border-panel-text-primary' : 'border-panel-border',
       transparent ? 'bg-panel-background-transparent' : 'bg-panel-background',
+      sticky && 'sticky top-0',
       className,
     )}
   >
-    <div className="mb-8 flex items-center justify-between">
+    <div className="flex flex-wrap items-center justify-between">
       <span className="flex text-xl font-semibold">{title}</span>
       <div
         className="flex"
@@ -55,11 +58,12 @@ const ShokoPanel = (
         disableOverflow === false && 'overflow-y-auto',
         contentClassName,
       )}
+      style={{ overflowAnchor: 'none' }} // To fix scroll jumping around randomly when queue items change
     >
       {isFetching
         ? (
-          <div className="flex grow items-center justify-center">
-            <Icon path={mdiLoading} spin size={1} />
+          <div className="flex grow items-center justify-center text-panel-text-primary">
+            <Icon path={mdiLoading} spin size={3} />
           </div>
         )
         : children}

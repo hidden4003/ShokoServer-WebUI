@@ -1,11 +1,23 @@
-/* eslint-disable no-param-reassign */
-import { compareItems, rankItem } from '@tanstack/match-sorter-utils';
-import { sortingFns } from '@tanstack/react-table';
+import copy from 'copy-to-clipboard';
+import dayjs from 'dayjs';
+import advancedFormat from 'dayjs/plugin/advancedFormat';
+import calendar from 'dayjs/plugin/calendar';
+import durationPlugin from 'dayjs/plugin/duration';
 import formatThousands from 'format-thousands';
-import { each, isObject, unset } from 'lodash';
+import { enableMapSet } from 'immer';
+import { isObject, toNumber } from 'lodash';
+import semver from 'semver';
 
-import type { RankingInfo } from '@tanstack/match-sorter-utils';
-import type { FilterFn, SortingFn } from '@tanstack/react-table';
+import toast from '@/components/Toast';
+
+dayjs.extend(advancedFormat);
+dayjs.extend(calendar);
+dayjs.extend(durationPlugin);
+
+export { default as dayjs } from 'dayjs';
+
+// Enables immer plugin to support Map and Set
+enableMapSet();
 
 const { DEV, VITE_APPVERSION, VITE_GITHASH } = import.meta.env;
 
@@ -17,17 +29,33 @@ export function isDebug() {
   return DEV;
 }
 
-export function mergeDeep(...objects) {
+export const minimumSupportedServerVersion = '4.2.2.13';
+
+export const parseServerVersion = (version: string) => {
+  const semverVersion = semver.coerce(version)?.raw;
+  const prereleaseVersion = version.split('.').pop();
+
+  if (!semverVersion || !prereleaseVersion) return null;
+
+  return `${semverVersion}-dev.${prereleaseVersion}`;
+};
+
+export const getParsedSupportedServerVersion = () => parseServerVersion(minimumSupportedServerVersion)!;
+
+export function mergeDeep(...objects: object[]) {
   return objects.reduce((prev, obj) => {
     Object.keys(obj).forEach((key) => {
-      const pVal = prev[key];
-      const oVal = obj[key];
+      const pVal: unknown = prev[key];
+      const oVal: unknown = obj[key];
 
       if (Array.isArray(pVal) && Array.isArray(oVal)) {
-        prev[key] = Array.from(new Set(pVal.concat(...oVal)));
+        // eslint-disable-next-line no-param-reassign
+        prev[key] = Array.from(new Set(pVal.concat(...oVal as [])));
       } else if (isObject(pVal) && isObject(oVal)) {
+        // eslint-disable-next-line no-param-reassign
         prev[key] = mergeDeep(pVal, oVal);
       } else {
+        // eslint-disable-next-line no-param-reassign
         prev[key] = oVal;
       }
     });
@@ -36,50 +64,28 @@ export function mergeDeep(...objects) {
   }, {});
 }
 
-// Needed to compare layout properties.
-// Stolen from https://stackoverflow.com/questions/37246775/
-export function omitDeepBy(value: any, iteratee: Function) {
-  each(value, (v, k) => {
-    if (iteratee(v, k)) {
-      unset(value, k);
-    } else if (isObject(v)) {
-      omitDeepBy(v, iteratee);
-    }
-  });
-
-  return value;
-}
-
-// tanstack table helpers
-
-declare module '@tanstack/table-core' {
-  /* eslint-disable-next-line  @typescript-eslint/consistent-type-definitions */
-  interface FilterFns {
-    fuzzy: FilterFn<unknown>;
-  }
-  /* eslint-disable-next-line  @typescript-eslint/consistent-type-definitions */
-  interface FilterMeta {
-    itemRank: RankingInfo;
-  }
-}
-
-export const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
-  const itemRank = rankItem(row.getValue(columnId), value);
-  addMeta({ itemRank });
-  return itemRank.passed;
-};
-
-export const fuzzySort: SortingFn<any> = (rowA, rowB, columnId) => {
-  let dir = 0;
-  if (rowA.columnFiltersMeta[columnId]) {
-    dir = compareItems(
-      rowA.columnFiltersMeta[columnId]?.itemRank!,
-      rowB.columnFiltersMeta[columnId]?.itemRank!,
-    );
-  }
-  return dir === 0 ? sortingFns.alphanumeric(rowA, rowB, columnId) : dir;
-};
-
 export const formatThousand = (n: number) => formatThousands(n, ',');
 
-export default {};
+export const copyToClipboard = async (text: string, entityName?: string) => {
+  try {
+    if (navigator?.clipboard) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      copy(text);
+    }
+    if (entityName) toast.success(`${entityName} has been copied to clipboard!`);
+  } catch (error) {
+    if (entityName) toast.error(`${entityName} copy failed!`);
+    throw error;
+  }
+};
+
+/**
+ * To convert TimeSpan returned by ASP.NET for duration (eg. 00:24:02.2424) to milliseconds
+ */
+export const convertTimeSpanToMs = (timeSpan: string) => {
+  const [duration, durationMs] = timeSpan.split('.');
+  const [hours, minutes, seconds] = duration.split(':');
+  return (((toNumber(hours) * 3600) + (toNumber(minutes) * 60) + toNumber(seconds)) * 1000)
+    + toNumber((durationMs ?? '0').slice(0, 3));
+};

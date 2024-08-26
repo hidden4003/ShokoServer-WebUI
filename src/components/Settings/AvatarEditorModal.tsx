@@ -30,7 +30,8 @@ const AvatarEditorModal = (props: Props) => {
   }, [show]);
 
   const handleSave = () => {
-    const canvas: HTMLCanvasElement = imageEditor.current?.getImage();
+    if (!imageEditor.current) return;
+    const canvas: HTMLCanvasElement = imageEditor.current.getImage();
 
     if (canvas.width > 512) {
       const resizedCanvas = document.createElement('canvas');
@@ -46,20 +47,22 @@ const AvatarEditorModal = (props: Props) => {
     onClose();
   };
 
+  if (!image) return null;
+
   return (
     <ModalPanel
       show={show}
       onRequestClose={onClose}
-      className="!w-96 flex-col gap-y-8 p-8 drop-shadow-lg"
+      size="sm"
+      header="Avatar"
     >
-      <div className="flex text-xl font-semibold">Avatar</div>
       <AvatarEditor
         image={image}
         width={256}
         height={256}
         borderRadius={9999}
         scale={scale}
-        className="h-auto w-full self-center rounded bg-default-background"
+        className="h-auto w-full self-center rounded bg-panel-background"
         onLoadFailure={onLoadFailure}
         ref={imageEditor}
       />

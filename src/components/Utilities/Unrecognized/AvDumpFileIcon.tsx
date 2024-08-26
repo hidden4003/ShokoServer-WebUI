@@ -10,18 +10,18 @@ import {
 } from '@mdi/js';
 import Icon from '@mdi/react';
 import cx from 'classnames';
-import { useCopyToClipboard, useEventCallback } from 'usehooks-ts';
 
 import Button from '@/components/Input/Button';
-import toast from '@/components/Toast';
-import { usePostFileAVDumpMutation } from '@/core/rtkQuery/splitV3Api/fileApi';
+import { useAvdumpFilesMutation } from '@/core/react-query/avdump/mutations';
+import { copyToClipboard } from '@/core/util';
+import useEventCallback from '@/hooks/useEventCallback';
 
 import type { RootState } from '@/core/store';
 import type { FileType } from '@/core/types/api/file';
 
 const AVDumpFileIcon = ({ file, truck = false }: { file: FileType, truck?: boolean }) => {
   const avdumpList = useSelector((state: RootState) => state.utilities.avdump);
-  const [fileAvdumpTrigger] = usePostFileAVDumpMutation();
+  const { mutate: avdumpFiles } = useAvdumpFilesMutation();
   const fileId = file.ID;
   const dumpSession = avdumpList.sessions[avdumpList.sessionMap[fileId]];
 
@@ -37,7 +37,7 @@ const AVDumpFileIcon = ({ file, truck = false }: { file: FileType, truck?: boole
     if (dumpSession?.status === 'Running') {
       return {
         path: mdiLoading,
-        color: 'text-panel-primary',
+        color: 'text-panel-text-primary',
         title: 'Dumping Now!',
         state: 'running',
       } as const;
@@ -46,7 +46,7 @@ const AVDumpFileIcon = ({ file, truck = false }: { file: FileType, truck?: boole
     if (dumpSession?.status === 'Failed') {
       return {
         path: mdiFileDocumentAlertOutline,
-        color: 'text-panel-danger',
+        color: 'text-panel-icon-danger',
         title: 'Dump Failed!',
         state: 'failed',
       } as const;
@@ -55,7 +55,7 @@ const AVDumpFileIcon = ({ file, truck = false }: { file: FileType, truck?: boole
     if (dumpSession?.status === 'Success') {
       return {
         path: mdiFileDocumentCheckOutline,
-        color: 'text-panel-important',
+        color: 'text-panel-icon-important',
         title: 'Dumped Successfully!',
         state: 'success',
       } as const;
@@ -64,7 +64,7 @@ const AVDumpFileIcon = ({ file, truck = false }: { file: FileType, truck?: boole
     if (file.AVDump.Status === 'Queued') {
       return {
         path: mdiFileDocumentRefreshOutline,
-        color: 'text-panel-warning',
+        color: 'text-panel-icon-action',
         title: 'Dumping Queued!',
         state: 'queued',
       } as const;
@@ -73,7 +73,7 @@ const AVDumpFileIcon = ({ file, truck = false }: { file: FileType, truck?: boole
     if (file.AVDump.LastDumpedAt) {
       return {
         path: mdiFileDocumentCheckOutline,
-        color: 'text-panel-important',
+        color: 'text-panel-icon-important',
         title: 'Previously Dumped!',
         state: 'success',
       } as const;
@@ -82,7 +82,7 @@ const AVDumpFileIcon = ({ file, truck = false }: { file: FileType, truck?: boole
     if (truck) {
       return {
         path: mdiDumpTruck,
-        color: 'text-panel-primary',
+        color: 'text-panel-icon-action',
         title: 'Click to Dump!',
         state: 'idle',
       } as const;
@@ -96,32 +96,34 @@ const AVDumpFileIcon = ({ file, truck = false }: { file: FileType, truck?: boole
     } as const;
   }, [file, dumpSession, truck]);
 
-  const handleDump = useEventCallback(async (event: React.MouseEvent) => {
+  const handleDump = useEventCallback((event: React.MouseEvent) => {
     event.stopPropagation();
     if (state === 'idle' || state === 'failed') {
-      await fileAvdumpTrigger(fileId);
+      avdumpFiles({ FileIDs: [fileId], Priority: true });
     }
   });
 
-  const [, copy] = useCopyToClipboard();
-  const handleCopy = async (event: React.MouseEvent) => {
+  const handleCopy = useEventCallback((event: React.MouseEvent) => {
     event.stopPropagation();
-    await copy(hash);
-    toast.success('Copied to clipboard!');
-  };
+    copyToClipboard(hash, 'ED2K hash').catch(console.error);
+  });
 
   return (
     <div className="ml-4 flex">
       {state === 'success'
         ? (
-          <div onClick={handleCopy}>
-            <Icon path={path} spin={path === mdiLoading} size={1} className={`${color} cursor-pointer`} title={title} />
-          </div>
+          <Button
+            onClick={handleCopy}
+            className={color}
+          >
+            <Icon path={path} spin={path === mdiLoading} size={1} title={title} />
+          </Button>
         )
         : (
           <Button
             onClick={handleDump}
             className={cx((state !== 'idle' && state !== 'failed') && 'cursor-default pointer-events-none')}
+            tooltip="Dump File"
           >
             <Icon path={path} spin={path === mdiLoading} size={1} className={color} title={title} />
           </Button>

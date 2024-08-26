@@ -4,13 +4,13 @@ import { useNavigate } from 'react-router-dom';
 
 import Button from '@/components/Input/Button';
 import TransitionDiv from '@/components/TransitionDiv';
-import { useGetInitStatusQuery } from '@/core/rtkQuery/splitV3Api/initApi';
+import { useServerStatusQuery } from '@/core/react-query/init/queries';
 import { setSaved as setFirstRunSaved } from '@/core/slices/firstrun';
 
 function Acknowledgement() {
   const dispatch = useDispatch();
 
-  const status = useGetInitStatusQuery();
+  const serverStatusQuery = useServerStatusQuery();
 
   const navigate = useNavigate();
 
@@ -20,7 +20,7 @@ function Acknowledgement() {
   };
 
   return (
-    <TransitionDiv className="flex max-w-[38rem] flex-col justify-center gap-y-8 text-justify">
+    <TransitionDiv className="flex max-w-[38rem] flex-col justify-center gap-y-6 text-justify">
       <div className="text-xl font-semibold">Acknowledgement</div>
       <div>
         It is important to clarify that Shoko is an anime cataloging program and not a standalone streaming service.
@@ -34,14 +34,14 @@ function Acknowledgement() {
         OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
         DEALINGS IN THE SOFTWARE.
       </div>
-      <div className="font-semibold text-panel-important">
+      <div className="font-semibold text-panel-text-important">
         We are constantly seeking talented individuals to join our team! If you believe you have the skills and
         expertise to contribute, we invite you to come and chat with us on&nbsp;
         <a
           href="https://discord.gg/vpeHDsg"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-panel-primary hover:underline"
+          className="text-panel-text-primary hover:underline"
         >
           Discord
         </a>
@@ -51,7 +51,7 @@ function Acknowledgement() {
         onClick={handleNext}
         buttonType="primary"
         className="py-2 font-semibold"
-        disabled={status.data?.State !== 4}
+        disabled={serverStatusQuery.data?.State !== 4}
       >
         Continue
       </Button>

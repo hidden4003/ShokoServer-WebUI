@@ -1,21 +1,27 @@
 import React, { useMemo } from 'react';
 
-const RemoveSummaryRegex = /^\n(Source|Note|Summary):.*/mg;
+// The question marks are there because people can't spell…
+const RemoveSummaryRegex = /\b(Sour?ce|Note|Summ?ary):([^\r\n]+|$)/mg;
+
+const MultiSpacesRegex = /\s{2,}/g;
 
 const CleanMiscLinesRegex = /^(\*|--|~) /sg;
 
 const CleanMultiEmptyLinesRegex = /\n{2,}/sg;
 
-const LinkRegex = /(?<url>http:\/\/anidb\.net\/(?<type>ch|cr|[feat])(?<id>\d+)) \[(?<text>[^\]]+)]/g;
+// eslint-disable-next-line operator-linebreak -- Because dprint and eslint can't agree otherwise. Feel free to fix it.
+const LinkRegex =
+  /(?<url>http:\/\/anidb\.net\/(?<type>ch|cr|[feat]|(?:character|creator|file|episode|anime|tag)\/)(?<id>\d+)) \[(?<text>[^\]]+)]/g;
 
-const AnidbDescription = ({ text }: { text: string }) => {
+const AnidbDescription = React.memo(({ className, text }: { text: string, className?: string }) => {
   const modifiedText = useMemo(() => {
     const cleanedText = text
       .replaceAll(CleanMiscLinesRegex, '')
       .replaceAll(RemoveSummaryRegex, '')
-      .replaceAll(CleanMultiEmptyLinesRegex, '\n');
+      .replaceAll(CleanMultiEmptyLinesRegex, '\n')
+      .replaceAll(MultiSpacesRegex, ' ');
 
-    const lines = [] as Array<React.ReactNode>;
+    const lines = [] as React.ReactNode[];
     let prevPos = 0;
     let pos = 0;
     let link = LinkRegex.exec(cleanedText);
@@ -24,7 +30,7 @@ const AnidbDescription = ({ text }: { text: string }) => {
       lines.push(cleanedText.substring(prevPos, pos));
       prevPos = pos + link[0].length;
       lines.push(
-        link[4],
+        link.groups!.text,
       );
       link = LinkRegex.exec(cleanedText);
     }
@@ -35,7 +41,7 @@ const AnidbDescription = ({ text }: { text: string }) => {
     LinkRegex.lastIndex = 0;
     return lines.join('');
   }, [text]);
-  return <div>{modifiedText}</div>;
-};
+  return <div className={className ?? 'pr-4 text-base'}>{modifiedText}</div>;
+});
 
-export default React.memo(AnidbDescription);
+export default AnidbDescription;

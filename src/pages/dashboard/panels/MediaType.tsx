@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { forEach } from 'lodash';
 
 import ShokoPanel from '@/components/Panels/ShokoPanel';
-import { useGetDashboardSeriesSummaryQuery } from '@/core/rtkQuery/splitV3Api/dashboardApi';
+import { useDashboardSeriesSummaryQuery } from '@/core/react-query/dashboard/queries';
 
 import type { RootState } from '@/core/store';
 
@@ -11,73 +11,71 @@ const names = {
   Series: 'TV Series',
 };
 
-function MediaType() {
-  const layoutEditMode = useSelector((state: RootState) => state.mainpage.layoutEditMode);
-  const seriesSummary = useGetDashboardSeriesSummaryQuery();
+const getColor = (type: string) => {
+  switch (type) {
+    case 'Series':
+      return 'panel-text-primary';
+    case 'Other':
+      return 'panel-text-other';
+    case 'Web':
+      return 'panel-text-danger';
+    case 'Movie':
+      return 'panel-text-important';
+    case 'OVA':
+      return 'panel-text-warning';
+    default:
+      return 'panel-text-primary';
+  }
+};
 
-  const renderColor = (type) => {
-    switch (type) {
-      case 'Series':
-        return 'panel-primary';
-      case 'Other':
-        return 'panel-extra';
-      case 'Web':
-        return 'panel-danger';
-      case 'Movie':
-        return 'panel-important';
-      case 'OVA':
-        return 'panel-warning';
-      default:
-        return 'panel-primary';
-    }
-  };
-
-  const renderName = (item: string, count: number, countPercentage: number) => (
-    <div key={`${item}-name`} className="mt-5 flex first:mt-0">
+const Item = ({ count, countPercentage, item }: { count: number, countPercentage: number, item: string }) => (
+  <div>
+    <div className="mb-1 flex">
       <span className="grow">
         {names[item] ?? item}
         &nbsp;-&nbsp;
         {count}
       </span>
       {/* eslint-disable-next-line tailwindcss/no-custom-classname */}
-      <span className={`text-${renderColor(item)} font-semibold`}>
+      <span className={`text-${getColor(item)} font-semibold`}>
         {countPercentage.toFixed(2)}
         %
       </span>
     </div>
-  );
-
-  const renderBar = (item: string, countPercentage: number) => (
-    <div key={`${item}-bar`} className="mt-2 flex rounded-md bg-panel-background-alt">
+    <div className="flex rounded-lg bg-panel-input">
       {/* eslint-disable-next-line tailwindcss/no-custom-classname */}
-      <div className={`bg-${renderColor(item)} h-4 rounded-md`} style={{ width: `${countPercentage}%` }} />
+      <div className={`bg-${getColor(item)} h-4 rounded-lg`} style={{ width: `${countPercentage}%` }} />
     </div>
-  );
+  </div>
+);
+
+function MediaType() {
+  const layoutEditMode = useSelector((state: RootState) => state.mainpage.layoutEditMode);
+  const seriesSummaryQuery = useDashboardSeriesSummaryQuery();
 
   let total = 0;
-  const seriesSummaryArray: Array<any> = [];
+  const seriesSummaryArray: [string, number][] = [];
 
-  forEach(seriesSummary.data, (item, key) => {
+  forEach(seriesSummaryQuery.data, (item, key) => {
     total += item ?? 0;
-    seriesSummaryArray.push([key, item]);
+    seriesSummaryArray.push([key, item ?? 0]);
   });
 
   seriesSummaryArray.sort((a, b) => (a[1] < b[1] ? 1 : -1));
 
-  const items: Array<React.ReactNode> = [];
+  const items: React.ReactNode[] = [];
 
   forEach(seriesSummaryArray, (item) => {
     let countPercentage = 0;
     if (total) {
       countPercentage = (item[1] / total) * 100;
     }
-    items.push(renderName(item[0], item[1], countPercentage));
-    items.push(renderBar(item[0], countPercentage));
+    items.push(<Item key={item[0]} item={item[0]} count={item[1]} countPercentage={countPercentage} />);
   });
 
   return (
-    <ShokoPanel title="Media Type" isFetching={seriesSummary.isLoading} editMode={layoutEditMode}>
-      {items}
+    <ShokoPanel title="Media Type" isFetching={seriesSummaryQuery.isPending} editMode={layoutEditMode}>
+      <div className="flex grow flex-col justify-between">{items}</div>
     </ShokoPanel>
   );
 }

@@ -4,53 +4,78 @@ import { Link } from 'react-router-dom';
 import prettyBytes from 'pretty-bytes';
 
 import ShokoPanel from '@/components/Panels/ShokoPanel';
-import { useGetDashboardStatsQuery } from '@/core/rtkQuery/splitV3Api/dashboardApi';
+import { useDashbordStatsQuery } from '@/core/react-query/dashboard/queries';
 
 import type { RootState } from '@/core/store';
+
+const Item = (
+  { link, title, value = 0 }: { title: string, value?: string | number, link?: string },
+) => (
+  <div className="flex">
+    <div className="grow">
+      {title}
+    </div>
+    {link ? <Link to={link} className="font-semibold text-panel-text-primary">{value}</Link> : <div>{value}</div>}
+  </div>
+);
 
 function CollectionStats() {
   const layoutEditMode = useSelector((state: RootState) => state.mainpage.layoutEditMode);
 
-  const stats = useGetDashboardStatsQuery();
-
-  const renderItem = (key: string, title: string, value: string | number = 0, link?: string) => (
-    <div key={key} className="flex">
-      <div className="mb-1 grow last:mb-0">
-        {title}
-      </div>
-      {link ? <Link to={link} className="text-panel-primary">{value}</Link> : <div>{value}</div>}
-    </div>
-  );
+  const statsQuery = useDashbordStatsQuery();
 
   const childrenFirst = [
-    renderItem('series', 'Series', stats.data?.SeriesCount),
-    renderItem('series-completed', 'Series Completed', stats.data?.FinishedSeries),
-    renderItem('episodes-watched', 'Episodes Watched', stats.data?.WatchedEpisodes),
-    renderItem('hours-watched', 'Hours Watched', `${stats.data?.WatchedHours || 0} H`),
+    <Item key="series" title="Series" value={statsQuery.data?.SeriesCount} />,
+    <Item key="series-completed" title="Series Completed" value={statsQuery.data?.FinishedSeries} />,
+    <Item key="episodes-watched" title="Episodes Watched" value={statsQuery.data?.WatchedEpisodes} />,
+    <Item key="hours-watched" title="Hours Watched" value={`${statsQuery.data?.WatchedHours ?? 0} H`} />,
   ];
   const childrenSecond = [
-    renderItem('collection-size', 'Collection Size', `${prettyBytes(stats.data?.FileSize || 0, { binary: true })}`),
-    renderItem('files', 'Files', stats.data?.FileCount),
-    renderItem('unrecognized-files', 'Unknown Files', stats.data?.UnrecognizedFiles, '/webui/utilities/unrecognized'),
-    renderItem('multiple-files', 'Duplicate Episodes', stats.data?.EpisodesWithMultipleFiles),
-    renderItem('duplicate-files', 'Duplicate Hashes', stats.data?.FilesWithDuplicateLocations),
+    <Item
+      key="collection-size"
+      title="Collection Size"
+      value={`${prettyBytes(statsQuery.data?.FileSize ?? 0, { binary: true })}`}
+    />,
+    <Item key="files" title="Files" value={statsQuery.data?.FileCount} />,
+    <Item
+      key="unrecognized-files"
+      title="Unknown Files"
+      value={statsQuery.data?.UnrecognizedFiles}
+      link="/webui/utilities/unrecognized"
+    />,
+    <Item
+      key="multiple-files"
+      title="Duplicate Episodes"
+      value={statsQuery.data?.EpisodesWithMultipleFiles}
+      link="/webui/utilities/release-management"
+    />,
+    <Item key="duplicate-files" title="Duplicate Hashes" value={statsQuery.data?.FilesWithDuplicateLocations} />,
   ];
 
   const childrenThird = [
-    renderItem('missing-links', 'Missing TvDB/TMDB Links', stats.data?.SeriesWithMissingLinks),
-    renderItem('missing-episodes-collecting', 'Missing Episodes (Collecting)', stats.data?.MissingEpisodesCollecting),
-    renderItem('missing-episodes', 'Missing Episodes (Total)', stats.data?.MissingEpisodes),
+    <Item key="missing-links" title="Missing TvDB/TMDB Links" value={statsQuery.data?.SeriesWithMissingLinks} />,
+    <Item
+      key="missing-episodes-collecting"
+      title="Missing Episodes (Collecting)"
+      value={statsQuery.data?.MissingEpisodesCollecting}
+    />,
+    <Item key="missing-episodes" title="Missing Episodes (Total)" value={statsQuery.data?.MissingEpisodes} />,
   ];
 
   return (
-    <ShokoPanel title="Collection Statistics" isFetching={stats.isLoading} editMode={layoutEditMode}>
-      <div className="flex flex-col leading-5">
+    <ShokoPanel
+      title="Collection Statistics"
+      isFetching={statsQuery.isPending}
+      editMode={layoutEditMode}
+      contentClassName="flex gap-y-6"
+    >
+      <div className="flex flex-col gap-y-1">
         {childrenFirst}
       </div>
-      <div className="mt-4 flex flex-col leading-5">
+      <div className="flex flex-col gap-y-1">
         {childrenSecond}
       </div>
-      <div className="mt-4 flex flex-col leading-5">
+      <div className="flex flex-col gap-y-1">
         {childrenThird}
       </div>
     </ShokoPanel>

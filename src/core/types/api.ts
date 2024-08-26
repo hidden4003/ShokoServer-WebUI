@@ -1,10 +1,3 @@
-export type ApiLoginType = {
-  user: string;
-  pass: string;
-  device: string;
-  rememberUser: boolean;
-};
-
 export type ApiSessionState = {
   apikey: string;
   username: string;
@@ -21,9 +14,14 @@ export type PaginationType = {
   page?: number;
 };
 
+export type DashboardPaginationType = PaginationType & {
+  includeRestricted: boolean;
+  onlyUnwatched?: boolean;
+};
+
 export type ListResultType<T> = {
   Total: number;
-  List: T;
+  List: T[];
 };
 
 export type TraktCodeType = {
@@ -37,6 +35,6 @@ export type WebUIVersionType = {
 };
 
 export type InfiniteResultType<T> = {
-  pages: Record<number, T>;
+  pages: Record<number, T[]>;
   total: number;
 };

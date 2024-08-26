@@ -1,20 +1,14 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import React, { useState } from 'react';
-import type { DropResult } from 'react-beautiful-dnd';
-import { mdiMinusCircleOutline, mdiPlusCircleOutline } from '@mdi/js';
-import { Icon } from '@mdi/react';
+import React from 'react';
 import cx from 'classnames';
-import { remove } from 'lodash';
 
-import LanguagesModal, { languageDescription } from '@/components/Dialogs/LanguagesModal';
-import DnDList from '@/components/DnDList/DnDList';
 import Button from '@/components/Input/Button';
 import Checkbox from '@/components/Input/Checkbox';
 import InputSmall from '@/components/Input/InputSmall';
 import SelectSmall from '@/components/Input/SelectSmall';
 import toast from '@/components/Toast';
-import { usePostAniDBTestLoginMutation } from '@/core/rtkQuery/splitV3Api/settingsApi';
-import { useSettingsContext } from '@/pages/settings/SettingsPage';
+import { useAniDBTestLoginMutation } from '@/core/react-query/settings/mutations';
+import useSettingsContext from '@/hooks/useSettingsContext';
 
 const UpdateFrequencyValues = () => (
   <>
@@ -28,23 +22,19 @@ const UpdateFrequencyValues = () => (
 );
 
 function AniDBSettings() {
-  const { newSettings, setNewSettings, updateSetting } = useSettingsContext();
-
-  const [testAniDbLoginTrigger, testAniDbLoginResult] = usePostAniDBTestLoginMutation();
-
-  const [showLanguagesModal, setShowLanguagesModal] = useState<'Series' | 'Episode' | null>(null);
+  const { newSettings, updateSetting } = useSettingsContext();
+  const { isPending: isAnidbLoginPending, mutate: testAniDbLogin } = useAniDBTestLoginMutation();
 
   const {
-    AVDumpClientPort,
     AVDumpKey,
     Anime_UpdateFrequency,
     Calendar_UpdateFrequency,
-    ClientPort,
     DownloadCharacters,
     DownloadCreators,
     DownloadRelatedAnime,
     DownloadReleaseGroups,
     File_UpdateFrequency,
+    HTTPServerUrl,
     MaxRelationDepth,
     MyList_AddFiles,
     MyList_DeleteType,
@@ -55,45 +45,17 @@ function AniDBSettings() {
     MyList_StorageState,
     MyList_UpdateFrequency,
     MyListStats_UpdateFrequency,
+    Notification_HandleMovedFiles,
+    Notification_UpdateFrequency,
     Password,
     Username,
   } = newSettings.AniDb;
 
-  const onDragEnd = (result: DropResult, episodePreference = false) => {
-    if (!result.destination || result.destination.index === result.source.index) {
-      return;
-    }
-
-    const items = Array.from(
-      episodePreference ? newSettings.EpisodeLanguagePreference : newSettings.LanguagePreference,
-    );
-    const [removed] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, removed);
-
-    setNewSettings({
-      ...newSettings,
-      [episodePreference ? 'EpisodeLanguagePreference' : 'LanguagePreference']: items as Array<string>,
+  const testLogin = () => {
+    testAniDbLogin({ Username, Password }, {
+      onSuccess: () => toast.success('AniDB Login Successful!'),
+      onError: () => toast.error('Incorrect Username/Password!'),
     });
-  };
-
-  const removeLanguage = (language: string, episodePreference = false) => {
-    const items = Array.from(
-      episodePreference ? newSettings.EpisodeLanguagePreference : newSettings.LanguagePreference,
-    );
-    remove(items, item => item === language);
-    setNewSettings({
-      ...newSettings,
-      [episodePreference ? 'EpisodeLanguagePreference' : 'LanguagePreference']: items as Array<string>,
-    });
-  };
-
-  const testLogin = async () => {
-    await testAniDbLoginTrigger({ Username, Password });
-    if (testAniDbLoginResult.isError) {
-      toast.error('Incorrect Username/Password!');
-    } else {
-      toast.success('AniDB Login Successful!');
-    }
   };
 
   const validateAndSaveRelationDepth = (depth: string) => {
@@ -104,20 +66,29 @@ function AniDBSettings() {
 
   return (
     <>
-      <div className="text-xl font-semibold">AniDB</div>
-      <div className="mt-0.5 flex flex-col gap-y-4">
+      <div className="flex flex-col gap-y-1">
+        <div className="text-xl font-semibold">AniDB</div>
+        <div>
+          Configure the information Shoko retrieves from AniDB for the series in your collection, and set your
+          preferences for MyList options and the general updating of AniDB data.
+        </div>
+      </div>
+
+      <div className="border-b border-panel-border" />
+
+      <div className="mt-0.5 flex flex-col gap-y-6">
         <div className="flex justify-between">
-          <div className="font-semibold">Login Options</div>
+          <div className="items-center font-semibold">Login Options</div>
           <Button
             onClick={() => testLogin()}
-            loading={testAniDbLoginResult.isLoading}
+            loading={isAnidbLoginPending}
             buttonType="primary"
-            className="!text-base font-semibold"
+            buttonSize="small"
           >
             Test
           </Button>
         </div>
-        <div className="flex flex-col gap-y-2 border-b border-panel-border pb-8">
+        <div className="flex flex-col gap-y-1">
           <div className="flex justify-between">
             Username
             <InputSmall
@@ -125,7 +96,7 @@ function AniDBSettings() {
               value={Username}
               type="text"
               onChange={event => updateSetting('AniDb', 'Username', event.target.value)}
-              className="w-32 px-3 py-1"
+              className="w-36 px-3 py-1"
             />
           </div>
           <div className="flex justify-between">
@@ -135,17 +106,7 @@ function AniDBSettings() {
               value={Password}
               type="password"
               onChange={event => updateSetting('AniDb', 'Password', event.target.value)}
-              className="w-32 px-3 py-1"
-            />
-          </div>
-          <div className="flex justify-between">
-            Port
-            <InputSmall
-              id="port"
-              value={ClientPort}
-              type="number"
-              onChange={event => updateSetting('AniDb', 'ClientPort', event.target.value)}
-              className="w-32 px-3 py-1"
+              className="w-36 px-3 py-1"
             />
           </div>
           <div className="flex justify-between">
@@ -155,25 +116,27 @@ function AniDBSettings() {
               value={AVDumpKey}
               type="password"
               onChange={event => updateSetting('AniDb', 'AVDumpKey', event.target.value)}
-              className="w-32 px-3 py-1"
+              className="w-36 px-3 py-1"
             />
           </div>
           <div className="flex justify-between">
-            AVDump Port
+            HTTP Server URL
             <InputSmall
-              id="avdump-port"
-              value={AVDumpClientPort}
-              type="number"
-              onChange={event => updateSetting('AniDb', 'AVDumpClientPort', event.target.value)}
-              className="w-32 px-3 py-1"
+              id="http-server-url"
+              value={HTTPServerUrl}
+              type="text"
+              onChange={event => updateSetting('AniDb', 'HTTPServerUrl', event.target.value)}
+              className="w-60 px-3 py-1"
             />
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-y-4">
-        <div className="font-semibold">Download Options</div>
-        <div className="flex flex-col gap-y-2 border-b border-panel-border pb-8">
+      <div className="border-b border-panel-border" />
+
+      <div className="flex flex-col gap-y-6">
+        <div className="flex h-[2.149rem] items-center font-semibold">Download Options</div>
+        <div className="flex flex-col gap-y-1">
           <Checkbox
             justify
             label="Character Images"
@@ -205,7 +168,7 @@ function AniDBSettings() {
           <div
             className={cx(
               'flex justify-between items-center transition-opacity',
-              !DownloadRelatedAnime && 'pointer-events-none opacity-50',
+              !DownloadRelatedAnime && 'pointer-events-none opacity-65',
             )}
           >
             Related Depth
@@ -220,9 +183,11 @@ function AniDBSettings() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-y-4">
-        <div className="font-semibold">Mylist Options</div>
-        <div className="flex flex-col gap-y-2 border-b border-panel-border pb-8">
+      <div className="border-b border-panel-border" />
+
+      <div className="flex flex-col gap-y-6">
+        <div className="flex h-[2.149rem] items-center font-semibold">Mylist Options</div>
+        <div className="flex flex-col gap-y-1">
           <Checkbox
             justify
             label="Add Files"
@@ -290,9 +255,11 @@ function AniDBSettings() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-y-4">
-        <div className="font-semibold">Update Options</div>
-        <div className="flex flex-col gap-y-2 border-b border-panel-border pb-8">
+      <div className="border-b border-panel-border" />
+
+      <div className="flex flex-col gap-y-6">
+        <div className="flex h-[2.149rem] items-center font-semibold">Update Options</div>
+        <div className="flex flex-col gap-y-1">
           <div className="flex items-center justify-between">
             <span>Calendar</span>
             <SelectSmall
@@ -343,69 +310,26 @@ function AniDBSettings() {
               <UpdateFrequencyValues />
             </SelectSmall>
           </div>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-y-4">
-        <div className="font-semibold">Language Options</div>
-        <div className="flex flex-col gap-y-2 border-b border-panel-border pb-8">
+          <div className="flex items-center justify-between">
+            <span>Notifications</span>
+            <SelectSmall
+              id="notifications"
+              value={Notification_UpdateFrequency}
+              onChange={event => updateSetting('AniDb', 'Notification_UpdateFrequency', event.target.value)}
+            >
+              <UpdateFrequencyValues />
+            </SelectSmall>
+          </div>
           <Checkbox
-            label="Also Use Synonyms"
-            id="LanguageUseSynonyms"
-            isChecked={newSettings.LanguageUseSynonyms}
-            onChange={event => setNewSettings({ ...newSettings, LanguageUseSynonyms: event.target.checked })}
             justify
+            label="Handle Moved Files"
+            id="handle-moved-files"
+            isChecked={Notification_HandleMovedFiles}
+            onChange={event => updateSetting('AniDb', 'Notification_HandleMovedFiles', event.target.checked)}
           />
-          <div className="flex justify-between">
-            Series Title (Drag to Reorder)
-            <Button onClick={() => setShowLanguagesModal('Series')} tooltip="Add Language">
-              <Icon className="text-panel-primary" path={mdiPlusCircleOutline} size={1} />
-            </Button>
-          </div>
-          <div className="flex rounded-md border border-panel-border bg-panel-background-alt p-4">
-            <DnDList onDragEnd={result => onDragEnd(result)}>
-              {newSettings.LanguagePreference.map(language => (
-                {
-                  key: language,
-                  item: (
-                    <div className="mt-2.5 flex items-center justify-between group-first:mt-0">
-                      {languageDescription[language]}
-                      <Button onClick={() => removeLanguage(language)} tooltip="Remove">
-                        <Icon className="text-panel-primary" path={mdiMinusCircleOutline} size={1} />
-                      </Button>
-                    </div>
-                  ),
-                }
-              ))}
-            </DnDList>
-          </div>
-          <div className="flex justify-between">
-            Episode Title (Drag to Reorder)
-            <Button onClick={() => setShowLanguagesModal('Episode')} tooltip="Add Language">
-              <Icon className="text-panel-primary" path={mdiPlusCircleOutline} size={1} />
-            </Button>
-          </div>
-          <div className="flex rounded-md border border-panel-border bg-panel-background-alt p-4">
-            <DnDList onDragEnd={result => onDragEnd(result, true)}>
-              {newSettings.EpisodeLanguagePreference.map(language => (
-                {
-                  key: language,
-                  item: (
-                    <div className="mt-2.5 flex items-center justify-between group-first:mt-0">
-                      {languageDescription[language]}
-                      <Button onClick={() => removeLanguage(language, true)} tooltip="Remove">
-                        <Icon className="text-panel-primary" path={mdiMinusCircleOutline} size={1} />
-                      </Button>
-                    </div>
-                  ),
-                }
-              ))}
-            </DnDList>
-          </div>
         </div>
       </div>
-
-      <LanguagesModal type={showLanguagesModal} onClose={() => setShowLanguagesModal(null)} />
+      <div className="border-b border-panel-border" />
     </>
   );
 }

@@ -14,7 +14,12 @@ export type SeriesType = {
   Links: SeriesLinkType[];
   Created: string;
   Updated: string;
+  AniDB?: SeriesAniDBType;
 };
+
+export type SeriesWithMultipleReleasesType = {
+  EpisodeCount: number;
+} & SeriesType;
 
 export type SeriesRelationType = {
   IDs: SeriesRelationIDsType;
@@ -39,10 +44,12 @@ export type SeriesIDsType = {
   TopLevelGroup: number;
   AniDB: number;
   TvDB: number[];
-  TMDB: number[];
   MAL: number[];
   TraktTv: number[];
-  AniList: number[];
+  TMDB: {
+    Movie: number[];
+    Show: number[];
+  };
 };
 
 export type SeriesAniDBType = {
@@ -92,21 +99,8 @@ export type SeriesAniDBSearchResult = {
   Title: string;
   Titles: SeriesTitleType[];
   ShokoID: number | null;
-  Type: string;
+  Type: SeriesTypeEnum;
   EpisodeCount: number;
-};
-
-export type SeriesTvDBType = {
-  ID: number;
-  AirDate: string | null;
-  EndDate: string | null;
-  Title: string;
-  Description: string;
-  Season: number | null;
-  Posters: ImageType[];
-  Fanarts: ImageType[];
-  Banners: ImageType[];
-  Rating: RatingType;
 };
 
 export type SeriesTitleType = {
@@ -128,6 +122,7 @@ export type SeriesSizesType = {
   Local: SeriesSizesEpisodeCountsType;
   Watched: SeriesSizesEpisodeCountsType;
   Total: SeriesSizesEpisodeCountsType;
+  Missing: SeriesSizesReducedEpisodeCountsType;
 };
 
 export type SeriesSizesFileSourcesType = {
@@ -150,6 +145,11 @@ export type SeriesSizesEpisodeCountsType = {
   Trailers: number;
   Parodies: number;
   Others: number;
+};
+
+export type SeriesSizesReducedEpisodeCountsType = {
+  Episodes: number;
+  Specials: number;
 };
 
 export type SeriesRecommendedType = {
