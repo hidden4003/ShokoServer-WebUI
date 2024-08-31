@@ -1,30 +1,41 @@
 /* global globalThis */
-
-import { get } from 'lodash';
-
 import type { RootState } from './store';
 import type { ApiSessionState } from '@/core/types/api';
 
 const { VITE_APPVERSION } = import.meta.env;
 
-const checkVersion = (version: string) => version === VITE_APPVERSION;
-
-const isSerializedState = (data: unknown): data is RootState => checkVersion(get(data, 'apiSession.version', ''));
-const isApiSession = (data: unknown): data is ApiSessionState => checkVersion(get(data, 'version', ''));
-
 export const loadState = (): RootState => {
   try {
     const serializedState = JSON.parse(globalThis.sessionStorage.getItem('state') ?? '{}') as RootState;
-    const apiSessionString = globalThis.localStorage.getItem('apiSession');
-    if (apiSessionString === null) {
-      return isSerializedState(serializedState) ? serializedState : {} as RootState;
+
+    // If the version is the same, we can return the state as is from session storage.
+    if (serializedState.apiSession?.version === VITE_APPVERSION) {
+      return serializedState;
     }
-    const apiSession: unknown = JSON.parse(apiSessionString);
-    if (!isApiSession(apiSession)) {
-      globalThis.localStorage.removeItem('apiSession');
-      return {} as RootState;
+
+    // If the version is different, we update the apiSession state to the current version and reset other slices.
+    if (serializedState.apiSession?.version) {
+      return {
+        apiSession: {
+          ...serializedState.apiSession,
+          version: VITE_APPVERSION,
+        },
+      } as RootState;
     }
-    return { ...serializedState, apiSession };
+
+    // If the version is missing above, it's a new session. Check local storage for apiSession.
+    const apiSession = JSON.parse(globalThis.localStorage.getItem('apiSession') ?? '{}') as ApiSessionState;
+
+    // If the apiSession is missing from localStorage, we reset the state.
+    if (!apiSession.version) return ({} as RootState);
+
+    // Update the apiSession state to the current version and return the state.
+    return {
+      apiSession: {
+        ...apiSession,
+        version: VITE_APPVERSION,
+      },
+    } as RootState;
   } catch (err) {
     return ({} as RootState);
   }
@@ -38,4 +49,12 @@ export const saveState = (state: RootState) => {
     globalThis.sessionStorage.setItem('state', JSON.stringify(state));
   } catch (err) { // Ignore write errors.
   }
+};
+
+export const clearSessionStorage = () => {
+  globalThis.sessionStorage.clear();
+};
+
+export const clearApiSession = () => {
+  globalThis.localStorage.removeItem('apiSession');
 };

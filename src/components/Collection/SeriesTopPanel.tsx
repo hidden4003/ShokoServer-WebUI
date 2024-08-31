@@ -8,7 +8,7 @@ import cx from 'classnames';
 import { toNumber } from 'lodash';
 
 import BackgroundImagePlaceholderDiv from '@/components/BackgroundImagePlaceholderDiv';
-import AnidbDescription from '@/components/Collection/AnidbDescription';
+import CleanDescription from '@/components/Collection/CleanDescription';
 import SeriesInfo from '@/components/Collection/SeriesInfo';
 import SeriesUserStats from '@/components/Collection/SeriesUserStats';
 import ShokoPanel from '@/components/Panels/ShokoPanel';
@@ -20,10 +20,6 @@ import useEventCallback from '@/hooks/useEventCallback';
 
 import type { ImageType } from '@/core/types/api/common';
 import type { SeriesType } from '@/core/types/api/series';
-
-type SeriesSidePanelProps = {
-  series: SeriesType;
-};
 
 const SeriesTag = React.memo(({ text, type }: { text: string, type: 'User' | 'AniDB' }) => {
   const dispatch = useDispatch();
@@ -50,11 +46,11 @@ const SeriesTag = React.memo(({ text, type }: { text: string, type: 'User' | 'An
   );
 });
 
-const SeriesTopPanel = React.memo(({ series }: SeriesSidePanelProps) => {
+const SeriesTopPanel = React.memo(({ series }: { series: SeriesType }) => {
   const { WebUI_Settings: { collection: { image: { showRandomPoster } } } } = useSettingsQuery().data;
   const [poster, setPoster] = useState<ImageType | null>(null);
   const { seriesId } = useParams();
-  const tagsQuery = useSeriesTagsQuery(toNumber(seriesId!), { excludeDescriptions: true }, !!seriesId);
+  const tagsQuery = useSeriesTagsQuery(toNumber(seriesId!), { excludeDescriptions: true, filter: 1 }, !!seriesId);
   const imagesQuery = useSeriesImagesQuery(toNumber(seriesId!), !!seriesId);
   const tags = useMemo(() => tagsQuery?.data ?? [], [tagsQuery.data]);
 
@@ -91,7 +87,10 @@ const SeriesTopPanel = React.memo(({ series }: SeriesSidePanelProps) => {
           contentClassName="contain-strict"
           transparent
         >
-          <AnidbDescription text={series.AniDB?.Description ?? ''} />
+          <CleanDescription
+            text={series.Description ?? ''}
+            altText={series.TMDB?.Shows[0]?.Overview ?? series.TMDB?.Movies[0]?.Overview ?? ''}
+          />
         </ShokoPanel>
 
         <ShokoPanel
@@ -108,7 +107,7 @@ const SeriesTopPanel = React.memo(({ series }: SeriesSidePanelProps) => {
         <ShokoPanel
           title="Top 10 Tags"
           className="!h-[16.5rem]"
-          contentClassName="!flex-row flex-wrap gap-3 contain-strict"
+          contentClassName="!flex-row flex-wrap gap-3 content-start contain-strict"
           isFetching={tagsQuery.isFetching}
           transparent
         >

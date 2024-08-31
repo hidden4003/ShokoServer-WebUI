@@ -1,11 +1,16 @@
 import React, { useMemo } from 'react';
+import cx from 'classnames';
 
 // The question marks are there because people can't spell…
 const RemoveSummaryRegex = /\b(Sour?ce|Note|Summ?ary):([^\r\n]+|$)/mg;
 
+const RemoveBasedOnWrittenByRegex = /^(\*|\u2014) ([^\r\n]+|$)/mg;
+
+const RemoveBBCodeRegex = /\[i\].*\[\/i\]/sg;
+
 const MultiSpacesRegex = /\s{2,}/g;
 
-const CleanMiscLinesRegex = /^(\*|--|~) /sg;
+const CleanMiscLinesRegex = /^(--|~) /sg;
 
 const CleanMultiEmptyLinesRegex = /\n{2,}/sg;
 
@@ -13,11 +18,19 @@ const CleanMultiEmptyLinesRegex = /\n{2,}/sg;
 const LinkRegex =
   /(?<url>http:\/\/anidb\.net\/(?<type>ch|cr|[feat]|(?:character|creator|file|episode|anime|tag)\/)(?<id>\d+)) \[(?<text>[^\]]+)]/g;
 
-const AnidbDescription = React.memo(({ className, text }: { text: string, className?: string }) => {
+type Props = {
+  className?: string;
+  text: string;
+  altText?: string;
+};
+
+const CleanDescription = React.memo(({ altText, className, text }: Props) => {
   const modifiedText = useMemo(() => {
     const cleanedText = text
       .replaceAll(CleanMiscLinesRegex, '')
       .replaceAll(RemoveSummaryRegex, '')
+      .replaceAll(RemoveBasedOnWrittenByRegex, '')
+      .replaceAll(RemoveBBCodeRegex, '')
       .replaceAll(CleanMultiEmptyLinesRegex, '\n')
       .replaceAll(MultiSpacesRegex, ' ');
 
@@ -41,7 +54,13 @@ const AnidbDescription = React.memo(({ className, text }: { text: string, classN
     LinkRegex.lastIndex = 0;
     return lines.join('');
   }, [text]);
-  return <div className={className ?? 'pr-4 text-base'}>{modifiedText}</div>;
+
+  // Fallback to alt text if modified text is empty
+  if (modifiedText === '') {
+    return <CleanDescription className={className} text={altText ?? 'Description Not Available.'} />;
+  }
+
+  return <div className={cx(className, 'pr-4 text-base')}>{modifiedText}</div>;
 });
 
-export default AnidbDescription;
+export default CleanDescription;

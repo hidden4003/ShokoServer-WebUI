@@ -21,7 +21,7 @@ const QuickSelectModal = ({ onClose, seriesId, show }: Props) => {
     seriesId,
     {
       groupBy:
-        'GroupName,FileSource,FileVersion,VideoCodecs,VideoResolution,AudioLanguages,SubtitleLanguages,VideoHasChapters',
+        'GroupName,FileSource,FileVersion,ImportFolder,VideoCodecs,VideoResolution,AudioLanguages,SubtitleLanguages,VideoHasChapters',
       includeEpisodeDetails: true,
     },
     show,
@@ -73,7 +73,7 @@ const QuickSelectModal = ({ onClose, seriesId, show }: Props) => {
           fileSummary?.Groups,
           (group, index) => (
             <div key={`group-${index}`} className="flex items-center justify-between gap-x-3">
-              <div className="flex flex-col gap-y-2">
+              <div className="flex flex-col gap-y-1">
                 <div className="font-semibold">
                   {group.GroupName === 'None' ? 'Manual link' : group.GroupName}
                   &nbsp;-&nbsp;
@@ -88,6 +88,10 @@ const QuickSelectModal = ({ onClose, seriesId, show }: Props) => {
                   )}
                   &nbsp;-&nbsp;
                   {`v${group.FileVersion}`}
+                </div>
+                <div className="flex flex-wrap text-sm opacity-65">
+                  Import Folder:&nbsp;
+                  {group.ImportFolder}
                 </div>
                 <div className="flex flex-wrap text-sm opacity-65">
                   {group.FileSource}

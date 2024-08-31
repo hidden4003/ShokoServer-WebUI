@@ -25,7 +25,7 @@ import { dayjs, formatThousand } from '@/core/util';
 import useEventCallback from '@/hooks/useEventCallback';
 import useMainPoster from '@/hooks/useMainPoster';
 
-import AnidbDescription from './AnidbDescription';
+import CleanDescription from './CleanDescription';
 
 import type { CollectionGroupType } from '@/core/types/api/collection';
 import type { SeriesSizesFileSourcesType, SeriesType } from '@/core/types/api/series';
@@ -68,22 +68,24 @@ const ListViewItem = ({ groupExtras, isSeries, isSidebarOpen, item }: Props) => 
   const settings = useSettingsQuery().data;
   const { showCustomTags, showGroupIndicator, showItemType, showTopTags } = settings.WebUI_Settings.collection.list;
 
-  const tagsQuery = useSeriesTagsQuery(item.IDs.ID, { filter: 128, excludeDescriptions: true }, isSeries);
+  const tagsQuery = useSeriesTagsQuery(item.IDs.ID, { filter: 1, excludeDescriptions: true }, isSeries);
 
   const poster = useMainPoster(item);
   const missingEpisodesCount = item.Sizes.Total.Episodes + item.Sizes.Total.Specials - item.Sizes.Local.Episodes
     - item.Sizes.Local.Specials;
 
-  const [airDate, description, endDate, groupCount, isSeriesOngoing] = useMemo(() => {
+  const [airDate, description, altDescription, endDate, groupCount, isSeriesOngoing] = useMemo(() => {
     if (isSeries) {
-      const series = (item as SeriesType).AniDB;
-      const tempEndDate = dayjs(series?.EndDate);
+      const anidbSeries = (item as SeriesType).AniDB;
+      const tmdbSeries = (item as SeriesType).TMDB;
+      const tempEndDate = dayjs(anidbSeries?.EndDate);
       return [
-        dayjs(series?.AirDate),
-        series?.Description,
+        dayjs(anidbSeries?.AirDate),
+        item.Description,
+        tmdbSeries?.Shows[0]?.Overview ?? tmdbSeries?.Movies[0]?.Overview ?? '',
         tempEndDate,
         0,
-        series?.EndDate ? tempEndDate.isAfter(dayjs()) : true,
+        anidbSeries?.EndDate ? tempEndDate.isAfter(dayjs()) : true,
       ];
     }
 
@@ -93,6 +95,7 @@ const ListViewItem = ({ groupExtras, isSeries, isSidebarOpen, item }: Props) => 
     return [
       dayjs(groupExtras?.AirDate),
       group.Description,
+      undefined,
       tempEndDate,
       tempCount,
       groupExtras?.EndDate ? tempEndDate.isAfter(dayjs()) : true,
@@ -275,7 +278,7 @@ const ListViewItem = ({ groupExtras, isSeries, isSidebarOpen, item }: Props) => 
           </div>
 
           <div className="line-clamp-4 text-sm">
-            <AnidbDescription text={description ?? ''} />
+            <CleanDescription text={description ?? ''} altText={altDescription} />
           </div>
         </div>
       </div>
