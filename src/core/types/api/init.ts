@@ -5,7 +5,7 @@ export type UserType = {
 
 export type ServerStatusType = {
   StartupMessage: string;
-  State: 1 | 2 | 3 | 4;
+  State: 'Starting' | 'Started' | 'Failed' | 'Waiting';
   Uptime: string;
   DatabaseBlocked: {
     Progress: number;
@@ -14,12 +14,15 @@ export type ServerStatusType = {
   };
 };
 
+export type ReleaseChannelType = 'Auto' | 'Stable' | 'Dev';
+
 export type ComponentVersionType = {
   Version: string;
-  ReleaseChannel: 'Stable' | 'Dev' | 'Debug';
+  ReleaseChannel: ReleaseChannelType | 'Debug';
   ReleaseDate: string;
   Commit?: string;
   Tag?: string;
+  Description?: string;
 };
 
 export type VersionType = {

@@ -41,37 +41,26 @@ const quickActions = {
     functionName: 'RefreshAniDBMovedFiles',
     info: 'Process file moved messages from AniDB. This will force an update on the affected files.',
   },
-  'sync-trakt': {
-    name: 'Sync Trakt Collection',
-    functionName: 'SyncTrakt',
-    info: 'Sync watch states from Shoko to Trakt. THIS IS A ONE-WAY ACTION AND WILL OVERWRITE ALL TRAKT DATA!',
+  'send-watch-states-trakt': {
+    name: 'Send Watch States to Trakt',
+    functionName: 'SendWatchStatesToTrakt',
+    info: 'Send missing watch states to Trakt. This does not overwrite Trakt data.',
   },
-  'update-all-trakt-info': {
-    name: 'Update All Trakt Info',
-    functionName: 'UpdateAllTraktInfo',
-    info: 'Sync all info for Series from Trakt to Shoko.',
-  },
-  'update-all-tvdb-info': {
-    name: 'Update All TvDB Info',
-    functionName: 'UpdateAllTvDBInfo',
-    info: 'Update all Series information with the latest data from TvDB.',
-  },
-  'regen-tvdb-links': {
-    name: 'Regenerate TvDB Links',
-    functionName: 'RegenerateAllTvDBEpisodeMatchings',
-    info:
-      'Recreates all episode matches for TvDB. This action is generally not required unless specifically instructed by a member of the Shoko team or mentioned in the release notes.',
+  'get-watch-states-trakt': {
+    name: 'Get Watch States from Trakt',
+    functionName: 'GetWatchStatesFromTrakt',
+    info: 'Get missing watch states fom Trakt. This does not overwrite local data.',
   },
   'run-import': {
     name: 'Run Import',
     functionName: 'RunImport',
     info:
-      'This checks for new files, hashes them etc, scans Drop Folders, checks and scans for community site links (tvdb, trakt, tmdb, etc), and downloads missing images.',
+      'This checks for new files, hashes them etc, scans Drop Folders, checks and scans for community site links (trakt, tmdb, etc), and downloads missing images.',
   },
   'import-new-files': {
     name: 'Import New Files',
     functionName: 'ImportNewFiles',
-    info: 'Queues a task to import only new files found in the import folder',
+    info: 'Queues a task to import only new files found in the managed folders.',
   },
   'avdump-mismatched-files': {
     name: 'AVDump Mismatched Files',
@@ -102,12 +91,17 @@ const quickActions = {
   'update-all-images': {
     name: 'Update All Images',
     functionName: 'UpdateAllImages',
-    info: 'Updates and downloads all missing images from AniDB and TvDB.',
+    info: 'Updates and downloads all missing images from AniDB and TMDB.',
   },
   'validate-all-images': {
     name: 'Validate All Images',
     functionName: 'ValidateAllImages',
     info: 'Identifies any invalid images and re-downloads them.',
+  },
+  'search-for-tmdb-matches': {
+    name: 'Search for TMDB Matches',
+    functionName: 'SearchForTmdbMatches',
+    info: 'Scan for TMDB matches for all unlinked AniDB anime.',
   },
   'update-all-tmdb-movies': {
     name: 'Update All TMDB Movies',
@@ -119,20 +113,41 @@ const quickActions = {
     functionName: 'UpdateAllTmdbShows',
     info: 'Updates all TMDB Shows in the local database.',
   },
-  'delete-ununsed-tmdb-movies': {
+  'delete-unused-tmdb-movies': {
     name: 'Delete Unused TMDB Movies',
     functionName: 'PurgeAllUnusedTmdbMovies',
-    info: 'Delete all unused TMDB Movies that are not linked to any AniDB anime.',
+    info: 'Deletes all unused TMDB Movies that are not linked to any AniDB anime.',
   },
-  'delete-ununsed-tmdb-shows': {
+  'delete-unused-tmdb-shows': {
     name: 'Delete Unused TMDB Shows',
     functionName: 'PurgeAllUnusedTmdbShows',
-    info: 'Delete all unused TMDB Shows that are not linked to any AniDB anime.',
+    info: 'Deletes all unused TMDB Shows that are not linked to any AniDB anime.',
+  },
+  'download-missing-tmdb-people': {
+    name: 'Download Missing TMDB People',
+    functionName: 'DownloadMissingTmdbPeople',
+    info: 'Downloads any TMDB People missing in the local database.',
+  },
+  'purge-tmdb-movie-collections': {
+    name: 'Delete All TMDB Movie Collections',
+    functionName: 'PurgeAllTmdbMovieCollections',
+    info:
+      'Deletes all TMDB Movie Collections stored in the local database, and removes any images associated with them.',
+  },
+  'purge-tmdb-show-alternate-orderings': {
+    name: 'Delete All TMDB Show Alternate Orderings',
+    functionName: 'PurgeAllTmdbShowAlternateOrderings',
+    info: 'Deletes all TMDB Show Alternate Orderings stored in the local database.',
   },
   'plex-sync-all': {
     name: 'Sync Plex Watch Status',
     functionName: 'PlexSyncAll',
     info: 'Synchronizes watch states with Plex.',
+  },
+  'plex-force-unlink': {
+    name: 'Force Unlink Plex',
+    functionName: '',
+    info: 'Invalidates the Plex token forcefully.',
   },
   'remove-missing-files-mylist': {
     name: 'Remove Missing Files',

@@ -1,20 +1,28 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import React, { useMemo } from 'react';
-import { mdiOpenInNew, mdiRefresh } from '@mdi/js';
+import React, { useMemo, useRef } from 'react';
+import { mdiBrushOutline, mdiOpenInNew, mdiRefresh } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import cx from 'classnames';
 
 import Button from '@/components/Input/Button';
 import Checkbox from '@/components/Input/Checkbox';
 import SelectSmall from '@/components/Input/SelectSmall';
+import toast from '@/components/Toast';
 import { useVersionQuery } from '@/core/react-query/init/queries';
-import { useWebuiThemesQuery, useWebuiUpdateCheckQuery } from '@/core/react-query/webui/queries';
-import { uiVersion } from '@/core/util';
+import { useWebuiUploadThemeMutation } from '@/core/react-query/webui/mutations';
+import {
+  useServerUpdateCheckQuery,
+  useWebuiThemesQuery,
+  useWebuiUpdateCheckQuery,
+} from '@/core/react-query/webui/queries';
+import { getUiVersion, isDebug } from '@/core/util';
 import useSettingsContext from '@/hooks/useSettingsContext';
 
-const UI_VERSION = uiVersion();
+let themeUpdateCounter = 0;
 
-function GeneralSettings() {
+const UI_VERSION = getUiVersion();
+
+const GeneralSettings = () => {
   const { newSettings, setNewSettings, updateSetting } = useSettingsContext();
 
   const {
@@ -23,12 +31,61 @@ function GeneralSettings() {
     WebUI_Settings,
   } = newSettings;
 
-  const checkWebuiUpdateQuery = useWebuiUpdateCheckQuery(
+  const serverUpdateCheckQuery = useServerUpdateCheckQuery(
+    { channel: newSettings.WebUI_Settings.serverUpdateChannel, force: true },
+    false,
+  );
+  const webuiUpdateCheckQuery = useWebuiUpdateCheckQuery(
     { channel: newSettings.WebUI_Settings.updateChannel, force: true },
     false,
   );
+  const updateCheckIsFetching = webuiUpdateCheckQuery.isFetching || serverUpdateCheckQuery.isFetching;
+
+  const themePathHref = useMemo(() => document.getElementById('theme-css')!.attributes.getNamedItem('href')!, []);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const versionQuery = useVersionQuery();
   const themesQuery = useWebuiThemesQuery();
+  const { isPending: isUploading, mutate: uploadTheme } = useWebuiUploadThemeMutation();
+
+  const onOpenFileDialog = (event: React.SyntheticEvent) => {
+    if (isUploading) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (isUploading) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const file = event.target.files?.[0];
+    if (!file) return;
+    uploadTheme({ file }, {
+      onSuccess(data) {
+        themesQuery.refetch()
+          .then(() => {
+            themeUpdateCounter += 1;
+            // URL cannot be built without a base, so we use localhost
+            const path = new URL(themePathHref.value, 'http://localhost');
+            path.searchParams.set('updateCount', themeUpdateCounter.toString());
+            // Remove base from URL and set value
+            themePathHref.value = `${path.pathname}${path.search}`;
+
+            updateSetting('WebUI_Settings', 'theme', `theme-${data.ID}`);
+            toast.info(`Successfully uploaded theme "${data.Name}"`);
+          })
+          .catch(console.error);
+      },
+    });
+  };
 
   const currentTheme = useMemo(() => (
     themesQuery.data?.find(theme => `theme-${theme.ID}` === WebUI_Settings.theme)
@@ -36,6 +93,7 @@ function GeneralSettings() {
 
   return (
     <>
+      <title>Settings &gt; General | Shoko</title>
       <div className="flex flex-col gap-y-1">
         <div className="text-xl font-semibold">General</div>
         <div>
@@ -54,14 +112,15 @@ function GeneralSettings() {
             buttonSize="small"
             className="flex flex-row flex-wrap items-center gap-x-2"
             onClick={() => {
-              checkWebuiUpdateQuery.refetch().then(() => {}, () => {});
+              serverUpdateCheckQuery.refetch().catch(console.error);
+              webuiUpdateCheckQuery.refetch().catch(console.error);
             }}
             tooltip="Check for WebUI Update"
           >
             <Icon
               path={mdiRefresh}
               size={0.85}
-              spin={checkWebuiUpdateQuery.isFetching}
+              spin={updateCheckIsFetching}
             />
             <span>Refresh</span>
           </Button>
@@ -95,7 +154,7 @@ function GeneralSettings() {
               <a
                 className="flex gap-x-2 text-panel-text-primary"
                 target="_blank"
-                href={`https://github.com/ShokoAnime/Shoko-WebUI/compare/${UI_VERSION}...master`}
+                href={`https://github.com/ShokoAnime/Shoko-WebUI/compare/${isDebug() ? '' : 'v'}${UI_VERSION}...master`}
                 rel="noreferrer"
               >
                 {`(${UI_VERSION})`}
@@ -103,7 +162,7 @@ function GeneralSettings() {
               </a>
             </div>
           </div>
-          <div className="flex items-center justify-between ">
+          <div className="flex items-center justify-between">
             <span>Web UI Channel</span>
             <SelectSmall
               id="update-channel"
@@ -120,7 +179,32 @@ function GeneralSettings() {
       <div className="border-b border-panel-border" />
 
       <div className="flex flex-col gap-y-6">
-        <div className="flex items-center font-semibold">Theme Options</div>
+        <div className="flex items-center justify-between">
+          <div className="font-semibold">Theme Options</div>
+          <input
+            ref={fileInputRef}
+            className="hidden"
+            multiple
+            id="file-input-field"
+            name="file"
+            type="file"
+            onChange={onFileChange}
+          />
+          <Button
+            buttonType="secondary"
+            buttonSize="small"
+            className="flex flex-row flex-wrap items-center gap-x-2"
+            onClick={onOpenFileDialog}
+            disabled={isUploading}
+            tooltip="Upload or install a new Theme"
+          >
+            <Icon
+              path={mdiBrushOutline}
+              size={0.85}
+            />
+            <span>Upload Theme</span>
+          </Button>
+        </div>
         <div className="flex flex-col gap-y-1">
           <div className="flex items-center justify-between">
             Theme
@@ -162,7 +246,7 @@ function GeneralSettings() {
         </div>
         <div
           className={cx(
-            'flex justify-between items-center transition-opacity',
+            'flex items-center justify-between transition-opacity',
             !(WebUI_Settings?.notifications ?? true) && 'pointer-events-none opacity-65',
           )}
         >
@@ -192,7 +276,7 @@ function GeneralSettings() {
         </div>
         <div
           className={cx(
-            'flex flex-col transition-opacity gap-y-2',
+            'flex flex-col gap-y-2 transition-opacity',
             !LogRotator.Enabled && 'pointer-events-none opacity-65',
           )}
         >
@@ -212,7 +296,7 @@ function GeneralSettings() {
           />
           <div
             className={cx(
-              'flex justify-between items-center transition-opacity',
+              'flex items-center justify-between transition-opacity',
               !LogRotator.Delete && 'pointer-events-none opacity-65',
             )}
           >
@@ -240,6 +324,6 @@ function GeneralSettings() {
       <div className="border-b border-panel-border" />
     </>
   );
-}
+};
 
 export default GeneralSettings;

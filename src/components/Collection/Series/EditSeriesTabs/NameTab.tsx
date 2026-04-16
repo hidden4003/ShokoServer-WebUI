@@ -4,7 +4,6 @@ import cx from 'classnames';
 import { useToggle } from 'usehooks-ts';
 
 import Input from '@/components/Input/Input';
-import toast from '@/components/Toast';
 import { useOverrideSeriesTitleMutation } from '@/core/react-query/series/mutations';
 import { useSeriesQuery } from '@/core/react-query/series/queries';
 
@@ -14,11 +13,11 @@ type Props = {
 
 const NameTab = ({ seriesId }: Props) => {
   const [name, setName] = useState('');
-  const [nameEditable, toggleNameEditable] = useToggle(false);
+  const [nameEditable, toggleNameEditable] = useToggle(true);
 
   const { data: seriesData, isError, isFetching, isSuccess } = useSeriesQuery(seriesId, { includeDataFrom: ['AniDB'] });
 
-  const { mutate: overrideTitle } = useOverrideSeriesTitleMutation();
+  const { mutate: overrideTitle } = useOverrideSeriesTitleMutation(seriesId);
 
   useEffect(() => {
     setName(seriesData?.Name ?? '');
@@ -50,12 +49,8 @@ const NameTab = ({ seriesId }: Props) => {
         icon: mdiCheckUnderlineCircleOutline,
         className: 'text-panel-text-primary',
         onClick: () =>
-          overrideTitle({ seriesId: seriesData.IDs.ID, Title: name }, {
-            onSuccess: () => {
-              toast.success('Name updated successfully!');
-              toggleNameEditable();
-            },
-            onError: () => toast.error('Name could not be updated!'),
+          overrideTitle(name, {
+            onSuccess: () => toggleNameEditable(),
           }),
         tooltip: 'Save name',
       },
@@ -66,7 +61,6 @@ const NameTab = ({ seriesId }: Props) => {
     name,
     nameEditable,
     overrideTitle,
-    seriesData?.IDs.ID,
     seriesData?.Name,
     toggleNameEditable,
   ]);
@@ -82,21 +76,21 @@ const NameTab = ({ seriesId }: Props) => {
       <Input
         id="name"
         type="text"
-        onChange={e => setName(e.target.value)}
+        onChange={event => setName(event.target.value)}
         value={name}
         placeholder={isFetching ? 'Loading...' : undefined}
         label="Name"
         className="mb-4"
-        inputClassName={cx(nameInputIcons.length > 1 ? 'pr-[5rem]' : 'pr-12', 'truncate')}
+        inputClassName={cx(nameInputIcons.length > 1 ? 'pr-20' : 'pr-12', 'truncate')}
         endIcons={nameInputIcons}
         disabled={!nameEditable}
       />
       {nameEditable && (
         <div className="flex cursor-pointer overflow-y-auto rounded-lg border border-panel-border bg-panel-input p-6">
-          <div className="shoko-scrollbar flex grow flex-col gap-y-2 overflow-y-auto bg-panel-input pr-4">
+          <div className="flex grow flex-col gap-y-2 overflow-y-auto bg-panel-input pr-4">
             {seriesData?.AniDB?.Titles.map(title => (
               <div
-                className="flex justify-between last:border-none hover:text-panel-text-primary"
+                className="flex justify-between transition-colors last:border-none hover:text-panel-text-primary"
                 key={title.Name + title.Language}
                 onClick={() => setName(title.Name)}
               >

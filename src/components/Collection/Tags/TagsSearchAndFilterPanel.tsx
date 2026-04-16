@@ -1,13 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { mdiMagnify, mdiPlayCircleOutline } from '@mdi/js';
 import Icon from '@mdi/react';
 
 import Checkbox from '@/components/Input/Checkbox';
 import Input from '@/components/Input/Input';
 import ShokoPanel from '@/components/Panels/ShokoPanel';
-import toast from '@/components/Toast';
 import { useRefreshSeriesAniDBInfoMutation } from '@/core/react-query/series/mutations';
-import useEventCallback from '@/hooks/useEventCallback';
 
 import type { TagType } from '@/core/types/api/tags';
 
@@ -22,12 +20,10 @@ type Props = {
 };
 const TagsSearchAndFilterPanel = React.memo(
   ({ handleInputChange, search, seriesId, showSpoilers, sort, tagSourceFilter, toggleSort }: Props) => {
-    const { isPending: anidbRefreshPending, mutate: refreshAnidb } = useRefreshSeriesAniDBInfoMutation();
-    const refreshAnidbCallback = useEventCallback(() => {
-      refreshAnidb({ seriesId, force: true }, {
-        onSuccess: () => toast.success('AniDB refresh queued!'),
-      });
-    });
+    const { isPending: anidbRefreshPending, mutate: refreshAnidb } = useRefreshSeriesAniDBInfoMutation(seriesId);
+    const refreshAnidbCallback = useCallback(() => {
+      refreshAnidb({ force: true });
+    }, [refreshAnidb]);
 
     const searchInput = useMemo(() => (
       <Input
@@ -100,7 +96,7 @@ const TagsSearchAndFilterPanel = React.memo(
       </button>
     ), [anidbRefreshPending, refreshAnidbCallback]);
     return (
-      <div className="flex w-400 shrink-0 flex-col gap-y-6">
+      <div className="flex w-100 shrink-0 flex-col gap-y-6">
         <ShokoPanel
           title="Search & Filter"
           className="w-full"

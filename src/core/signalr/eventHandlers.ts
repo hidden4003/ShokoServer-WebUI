@@ -14,8 +14,8 @@ const invalidateFiles = debounce(
   1000,
 );
 
-const invalidateImportFolders = debounce(
-  () => invalidateQueries(['import-folder']),
+const invalidateManagedFolders = debounce(
+  () => invalidateQueries(['managed-folder']),
   1000,
 );
 
@@ -24,18 +24,12 @@ const invalidateQueueItems = debounce(
   500,
 );
 
-const invalidateReleaseManagement = debounce(
-  () => invalidateQueries(['release-management']),
-  5000,
-);
-
 const invalidateSeries = debounce(
-  (seriesId: number, groupIds: number[]) => {
-    invalidateQueries(['series', seriesId]);
-    invalidateQueries(['webui', 'series-overview', seriesId]);
-
-    groupIds.forEach(groupId => invalidateQueries(['group', groupId]));
-  },
+  (seriesIds: number[]) =>
+    seriesIds.forEach((seriesId) => {
+      invalidateQueries(['series', seriesId]);
+      invalidateQueries(['webui', 'series-overview', seriesId]);
+    }),
   1000,
 );
 
@@ -47,12 +41,11 @@ export const handleEvent = (event: string, data?: SeriesUpdateEventType) => {
     case 'FileMatched':
       invalidateDashboard();
       invalidateFiles();
-      invalidateImportFolders();
-      invalidateReleaseManagement();
+      invalidateManagedFolders();
       break;
     case 'FileMoved':
       invalidateFiles();
-      invalidateImportFolders();
+      invalidateManagedFolders();
       break;
     case 'FileRenamed':
       invalidateFiles();
@@ -62,9 +55,8 @@ export const handleEvent = (event: string, data?: SeriesUpdateEventType) => {
       break;
     case 'SeriesUpdated':
       invalidateDashboard();
-      invalidateImportFolders();
-      if (!data?.ShokoGroupIDs || !data?.ShokoSeriesIDs) return;
-      invalidateSeries(data.ShokoSeriesIDs[0], data.ShokoGroupIDs);
+      invalidateManagedFolders();
+      if (data?.ShokoSeriesIDs) invalidateSeries(data.ShokoSeriesIDs);
       break;
     default:
   }

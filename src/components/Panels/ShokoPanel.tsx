@@ -34,7 +34,7 @@ const ShokoPanel = (
 ) => (
   <div
     className={cx(
-      'flex flex-col transition-colors border rounded-lg p-6 gap-y-6',
+      'flex flex-col gap-y-6 rounded-lg border p-6 transition-colors',
       fullHeight && 'h-full',
       editMode ? 'pointer-events-none border-panel-text-primary' : 'border-panel-border',
       transparent ? 'bg-panel-background-transparent' : 'bg-panel-background',
@@ -54,8 +54,8 @@ const ShokoPanel = (
     </div>
     <div
       className={cx(
-        'flex grow flex-col shoko-scrollbar',
-        disableOverflow === false && 'overflow-y-auto',
+        'flex grow flex-col',
+        !disableOverflow && 'overflow-y-auto',
         contentClassName,
       )}
       style={{ overflowAnchor: 'none' }} // To fix scroll jumping around randomly when queue items change

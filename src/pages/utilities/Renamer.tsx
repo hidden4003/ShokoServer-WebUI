@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import AnimateHeight from 'react-animate-height';
-import { useDispatch, useSelector } from 'react-redux';
 import {
   mdiAlertCircleOutline,
   mdiCheckCircleOutline,
@@ -31,24 +30,23 @@ import RenamerScript from '@/components/Utilities/Renamer/RenamerScript';
 import RenamerSettings from '@/components/Utilities/Renamer/RenamerSettings';
 import MenuButton from '@/components/Utilities/Unrecognized/MenuButton';
 import UtilitiesTable from '@/components/Utilities/UtilitiesTable';
-import { useImportFoldersQuery } from '@/core/react-query/import-folder/queries';
+import { useManagedFoldersQuery as useImportFoldersQuery } from '@/core/react-query/managed-folder/queries';
 import {
   useRenamerDeleteConfigMutation,
   useRenamerPreviewMutation,
   useRenamerRelocateMutation,
   useRenamerSaveConfigMutation,
 } from '@/core/react-query/renamer/mutations';
-import { useRenamerByConfigQuery, useRenamerConfigsQuery } from '@/core/react-query/renamer/queries';
+import { useRenamerByConfigQuery, useRenamerConfigsQuery, useRenamersQuery } from '@/core/react-query/renamer/queries';
 import { usePatchSettingsMutation } from '@/core/react-query/settings/mutations';
 import { useSettingsQuery } from '@/core/react-query/settings/queries';
 import { clearFiles, clearRenameResults, removeFiles } from '@/core/slices/utilities/renamer';
-import useEventCallback from '@/hooks/useEventCallback';
+import { useDispatch, useSelector } from '@/core/store';
 import useRowSelection from '@/hooks/useRowSelection';
 
 import type { UtilityHeaderType } from '@/components/Utilities/constants';
-import type { RootState } from '@/core/store';
 import type { FileType } from '@/core/types/api/file';
-import type { ImportFolderType } from '@/core/types/api/import-folder';
+import type { ManagedFolderType as ImportFolderType } from '@/core/types/api/managed-folder';
 import type { RenamerConfigSettingsType, RenamerConfigType, RenamerResultType } from '@/core/types/api/renamer';
 
 const getFileColumn = (importFolders: ImportFolderType[]) => ({
@@ -61,7 +59,7 @@ const getFileColumn = (importFolders: ImportFolderType[]) => ({
     const relativePath = match ? path?.substring(0, match.index) : 'Root Level';
     const importFolder = find(
       importFolders,
-      { ID: file?.Locations[0]?.ImportFolderID ?? -1 },
+      { ID: file?.Locations[0]?.ManagedFolderID ?? -1 },
     )?.Name ?? '<Unknown>';
     return (
       <div
@@ -191,7 +189,7 @@ const getStatusColumn = (
       const relativePath = match ? path?.substring(0, match.index) : 'Root Level';
       const importFolder = find(
         importFolders,
-        { ID: file?.Locations[0]?.ImportFolderID ?? -1 },
+        { ID: file?.Locations[0]?.ManagedFolderID ?? -1 },
       )?.Name ?? '<Unknown>';
 
       const newPath = result.RelativePath ?? '';
@@ -213,10 +211,17 @@ const getStatusColumn = (
   },
 } as UtilityHeaderType<FileType>);
 
-const Menu = React.memo((
-  props: { disable: boolean, moveFiles: boolean, toggleMoveFiles: () => void, selectedRows: FileType[] },
-) => {
-  const { disable, moveFiles, selectedRows, toggleMoveFiles } = props;
+type MenuProps = {
+  disable: boolean;
+  moveFiles: boolean;
+  renameFiles: boolean;
+  toggleMoveFiles: () => void;
+  toggleRenameFiles: () => void;
+  selectedRows: FileType[];
+};
+
+const Menu = React.memo((props: MenuProps) => {
+  const { disable, moveFiles, renameFiles, selectedRows, toggleMoveFiles, toggleRenameFiles } = props;
 
   const dispatch = useDispatch();
 
@@ -224,7 +229,7 @@ const Menu = React.memo((
     <div
       className={cx(
         'flex h-13 grow items-center gap-x-4 rounded-lg border border-panel-border bg-panel-background-alt px-4 py-3 transition-opacity',
-        disable ? 'opacity-65 pointer-events-none' : '',
+        disable ? 'pointer-events-none opacity-65' : '',
       )}
     >
       <MenuButton
@@ -250,14 +255,45 @@ const Menu = React.memo((
         label="Move Files"
         labelRight
       />
+      <Checkbox
+        id="rename-files"
+        isChecked={renameFiles}
+        onChange={toggleRenameFiles}
+        label="Rename Files"
+        labelRight
+      />
     </div>
+  );
+});
+
+const ConfigOption = React.memo(({ config }: { config: RenamerConfigType }) => {
+  const renamersQuery = useRenamersQuery();
+
+  const currentRenamer = useMemo(
+    () => find(renamersQuery.data, item => item.RenamerID === config.RenamerID),
+    [config.RenamerID, renamersQuery.data],
+  );
+
+  let configName: string;
+  if (renamersQuery.isPending) {
+    configName = 'Loading...';
+  } else if (currentRenamer) {
+    configName = `${config.Name} (${currentRenamer.Name} - ${currentRenamer.Version})`;
+  } else {
+    configName = `${config.Name} (<Unknown>)`;
+  }
+
+  return (
+    <option value={config.Name}>
+      {configName}
+    </option>
   );
 });
 
 const Renamer = () => {
   const dispatch = useDispatch();
-  const addedFiles = useSelector((state: RootState) => state.utilities.renamer.files);
-  const renameResults = useSelector((state: RootState) => state.utilities.renamer.renameResults);
+  const addedFiles = useSelector(state => state.utilities.renamer.files);
+  const renameResults = useSelector(state => state.utilities.renamer.renameResults);
 
   const settings = useSettingsQuery().data;
   const importFolderQuery = useImportFoldersQuery();
@@ -282,6 +318,11 @@ const Renamer = () => {
   const { isPending: settingsPatchPending, mutate: patchSettings } = usePatchSettingsMutation();
 
   const [moveFiles, toggleMoveFiles] = useToggle(settings.Plugins.Renamer.MoveOnImport);
+  // In the case where move on import is not selected, we will assume the user wants to rename files when
+  // they open this page. Otherwise, why are they here? In most cases, it would be for renaming.
+  const [renameFiles, toggleRenameFiles] = useToggle(
+    settings.Plugins.Renamer.MoveOnImport ? settings.Plugins.Renamer.RenameOnImport : true,
+  );
   const [showSettings, toggleSettings] = useToggle(false);
   const [showAddFilesModal, toggleAddFilesModal] = useToggle(false);
   const [showConfigModal, toggleConfigModal] = useToggle(false);
@@ -295,7 +336,7 @@ const Renamer = () => {
     ],
   );
 
-  const fetchPreviewPage = useEventCallback(async (index: number) => {
+  const fetchPreviewPage = async (index: number) => {
     if (!newConfig || !renamer) return;
     const pageSize = 20;
     const pageNumber = Math.floor(index / pageSize);
@@ -312,7 +353,7 @@ const Renamer = () => {
     await previewRename(
       {
         move: moveFiles,
-        rename: true,
+        rename: renameFiles,
         FileIDs: pendingPreviews,
         Config: {
           RenamerID: renamer.RenamerID,
@@ -321,9 +362,9 @@ const Renamer = () => {
         },
       },
     );
-  });
+  };
 
-  const changeSelectedConfig = useEventCallback((configName: string) => {
+  const changeSelectedConfig = (configName: string) => {
     if (configName === '') {
       setSelectedConfig({ RenamerID: '', Name: '' });
       return;
@@ -338,7 +379,9 @@ const Renamer = () => {
 
     setSelectedConfig(tempConfig);
     setNewConfig(tempConfig.Settings);
-  });
+  };
+
+  const changeSelectedConfigEvent = useEffectEvent((configName: string) => changeSelectedConfig(configName));
 
   // Handle the below 3 hooks with care. These are used for auto-updating previews on changes.
   // We combine them here because there is a delay in when the name changes and the config changes
@@ -363,56 +406,69 @@ const Renamer = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedConfig, dispatch]);
 
-  const handleSaveConfig = useEventCallback(() => {
+  const handleSaveConfig = () => {
     if (!newConfig || !renamer) return;
-    saveConfig({
-      RenamerID: renamer.RenamerID,
-      Name: selectedConfig.Name,
-      Settings: map(newConfig, config => config),
-    });
-  });
+    saveConfig(
+      {
+        RenamerID: renamer.RenamerID,
+        Name: selectedConfig.Name,
+        Settings: map(newConfig, config => config),
+      },
+      {
+        onSuccess: () => {
+          toast.success(`"${selectedConfig.Name}" saved successfully!`);
+        },
+        onError: () => toast.error(`"${selectedConfig.Name}" could not be saved!`),
+      },
+    );
+  };
 
-  const handleDeleteConfig = useEventCallback(() => {
-    if (!newConfig || !renamer) return;
+  const handleDeleteConfig = () => {
+    if (!renamer) return;
     deleteConfig(selectedConfig.Name, {
       onSuccess: () => toast.success(`"${selectedConfig.Name}" deleted successfully!`),
       onError: () => toast.error(`"${selectedConfig.Name}" could not be deleted!`),
     });
     changeSelectedConfig(settings.Plugins.Renamer.DefaultRenamer ?? 'Default');
-  });
+  };
 
-  const handleSetAsDefault = useEventCallback(() => {
+  const handleSetAsDefault = () => {
     const newSettings = produce(settings, (draftState) => {
       draftState.Plugins.Renamer.DefaultRenamer = selectedConfig.Name;
     });
-    patchSettings({ newSettings }, {
+    patchSettings(newSettings, {
       onSuccess: () => {
         toast.success(`"${selectedConfig.Name}" set as default renamer!`);
       },
       onError: error => toast.error('', error.message),
     });
-  });
+  };
 
-  const openConfigModal = useEventCallback((rename: boolean) => {
+  const openConfigModal = (rename: boolean) => {
     setConfigModelRename(rename);
     toggleConfigModal();
-  });
+  };
 
   useEffect(() => {
     dispatch(clearRenameResults());
-  }, [dispatch, moveFiles]);
+  }, [dispatch, moveFiles, renameFiles]);
 
   useEffect(() => {
     if (!renamerConfigsQuery.isSuccess) return;
-    changeSelectedConfig(settings.Plugins.Renamer.DefaultRenamer ?? 'Default');
-  }, [changeSelectedConfig, renamerConfigsQuery.isSuccess, settings]);
+
+    if (selectedConfig.Name) changeSelectedConfigEvent(selectedConfig.Name);
+    else changeSelectedConfigEvent(settings.Plugins.Renamer.DefaultRenamer ?? 'Default');
+    // This shouldn't run when `selectedConfig.Name` changes.
+    // We are resetting `selectedConfig` when new data arrives so that it is up-to-date for `configEdited` flag
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renamerConfigsQuery.data, renamerConfigsQuery.isSuccess, settings]);
 
   const {
     handleRowSelect,
     rowSelection,
     selectedRows,
     setRowSelection,
-  } = useRowSelection<FileType>(addedFiles);
+  } = useRowSelection(addedFiles);
 
   const columns = useMemo(() => {
     const importFolders = importFolderQuery?.data ?? [];
@@ -432,198 +488,209 @@ const Renamer = () => {
     [renamer],
   );
 
-  const handleRename = useEventCallback(() => {
+  const handleRename = () => {
     // Split the files into chunks of 1000 to avoid API errors
     chunk(addedFiles, 1000).forEach((files) => {
       relocateFiles({
         configName: selectedConfig.Name,
         move: moveFiles,
-        rename: true,
+        rename: renameFiles,
         deleteEmptyDirectories: true,
         FileIDs: files.map(file => file.ID),
       });
     });
-  });
+  };
+
+  const [renameDisabled, renameDisabledReason] = useMemo(() => {
+    if (relocatePending) return [true, 'Renaming in progress...'];
+    if (configEdited) return [true, 'Config has been edited, please save before renaming files'];
+    if (addedFiles.length === 0) return [true, 'No files added'];
+    if (!moveFiles && !renameFiles) return [true, 'Neither rename nor move is selected. No action to be performed'];
+    return [false, ''];
+  }, [addedFiles.length, configEdited, moveFiles, relocatePending, renameFiles]);
 
   return (
-    <div className="flex grow flex-col gap-y-3">
-      <ShokoPanel title="File Rename">
-        <div className="flex items-center gap-x-3">
-          <Menu
-            selectedRows={selectedRows}
-            moveFiles={moveFiles}
-            toggleMoveFiles={toggleMoveFiles}
-            disable={relocatePending}
-          />
-          <div className="flex gap-x-3">
-            <Button
-              buttonType="secondary"
-              buttonSize="normal"
-              className="flex h-13 items-center"
-              onClick={toggleSettings}
-              disabled={!renamerConfigsQuery.isSuccess}
-            >
-              <Icon path={mdiCogOutline} size={1} />
-            </Button>
-            <Button
-              buttonType="secondary"
-              buttonSize="normal"
-              className="flex h-13 items-center"
-              onClick={toggleAddFilesModal}
-              disabled={relocatePending}
-            >
-              Add Files
-            </Button>
-            <Button
-              buttonType="primary"
-              buttonSize="normal"
-              className="flex h-13 flex-wrap items-center gap-x-2"
-              onClick={handleRename}
-              loading={relocatePending}
-              disabled={configEdited || relocatePending || addedFiles.length === 0}
-              tooltip={configEdited ? 'Config has been edited, please save before relocating files' : ''}
-            >
-              <Icon path={mdiFileDocumentEditOutline} size={1} />
-              Rename Files
-            </Button>
+    <>
+      <title>File Renamer | Shoko</title>
+      <div className="flex grow flex-col gap-y-3">
+        <ShokoPanel title="File Rename">
+          <div className="flex items-center gap-x-3">
+            <Menu
+              selectedRows={selectedRows}
+              moveFiles={moveFiles}
+              renameFiles={renameFiles}
+              toggleMoveFiles={toggleMoveFiles}
+              toggleRenameFiles={toggleRenameFiles}
+              disable={relocatePending}
+            />
+            <div className="flex gap-x-3">
+              <Button
+                buttonType="secondary"
+                buttonSize="normal"
+                className="flex h-13 items-center"
+                onClick={toggleSettings}
+                disabled={!renamerConfigsQuery.isSuccess}
+              >
+                <Icon path={mdiCogOutline} size={1} />
+              </Button>
+              <Button
+                buttonType="secondary"
+                buttonSize="normal"
+                className="flex h-13 items-center"
+                onClick={toggleAddFilesModal}
+                disabled={relocatePending}
+              >
+                Add Files
+              </Button>
+              <Button
+                buttonType="primary"
+                buttonSize="normal"
+                className="flex h-13 flex-wrap items-center gap-x-2"
+                onClick={handleRename}
+                loading={relocatePending}
+                disabled={renameDisabled}
+                tooltip={renameDisabledReason}
+              >
+                <Icon path={mdiFileDocumentEditOutline} size={1} />
+                Rename Files
+              </Button>
+            </div>
+            <AddFilesModal show={showAddFilesModal} onClose={toggleAddFilesModal} />
           </div>
-          <AddFilesModal show={showAddFilesModal} onClose={toggleAddFilesModal} />
-        </div>
-      </ShokoPanel>
+        </ShokoPanel>
 
-      <AnimateHeight height={showSettings ? 'auto' : 0}>
-        <div className={cx('my-3 flex !h-[32rem] gap-x-6', relocatePending && 'opacity-65 pointer-events-none')}>
-          {renamerConfigsQuery.isSuccess && (
-            <>
-              <div className="flex w-1/3 flex-col gap-y-6">
-                <ShokoPanel title="Renamer Selection" contentClassName="gap-y-5" fullHeight={!renamerSettingsExist}>
-                  <Select
-                    label="Config"
-                    id="renamer-config"
-                    value={selectedConfig.Name}
-                    onChange={e => changeSelectedConfig(e.target.value)}
-                  >
-                    {renamerConfigsQuery.data.map(renamerConfig => (
-                      <option key={renamerConfig.Name} value={renamerConfig.Name}>
-                        {renamerConfig.Name}
-                      </option>
-                    ))}
+        <AnimateHeight height={showSettings ? 'auto' : 0}>
+          <div className={cx('my-3 flex h-128! gap-x-6', relocatePending && 'pointer-events-none opacity-65')}>
+            {renamerConfigsQuery.isSuccess && (
+              <>
+                <div className="flex w-1/3 flex-col gap-y-6">
+                  <ShokoPanel title="Renamer Selection" contentClassName="gap-y-5" fullHeight={!renamerSettingsExist}>
+                    <Select
+                      label="Config"
+                      id="renamer-config"
+                      value={selectedConfig.Name}
+                      onChange={event => changeSelectedConfig(event.target.value)}
+                    >
+                      {renamerConfigsQuery.data.map(renamerConfig => (
+                        <ConfigOption config={renamerConfig} key={renamerConfig.Name} />
+                      ))}
 
-                    {renamerConfigsQuery.data.length === 0 && (
-                      <option key="na" value="na">
-                        No renamer found!
-                      </option>
-                    )}
-                  </Select>
-                  <div className="flex justify-end gap-x-3 font-semibold">
-                    <Button
-                      onClick={handleSetAsDefault}
-                      buttonType="secondary"
-                      buttonSize="normal"
-                      loading={settingsPatchPending}
-                      disabled={(selectedConfig.Name === settings.Plugins.Renamer.DefaultRenamer)
-                        || settingsPatchPending}
-                      tooltip={selectedConfig.Name === settings.Plugins.Renamer.DefaultRenamer
-                        ? 'Already set as default!'
-                        : ''}
-                    >
-                      Set as default
-                    </Button>
-                    <Button
-                      onClick={handleDeleteConfig}
-                      buttonType="danger"
-                      buttonSize="normal"
-                      loading={deletePending}
-                      disabled={(selectedConfig.Name === settings.Plugins.Renamer.DefaultRenamer) || deletePending}
-                      tooltip={(selectedConfig.Name === settings.Plugins.Renamer.DefaultRenamer)
-                        ? 'Cannot delete default config!'
-                        : ''}
-                    >
-                      Delete
-                    </Button>
-                    <Button
-                      onClick={() => openConfigModal(true)}
-                      buttonType="secondary"
-                      buttonSize="normal"
-                    >
-                      Rename
-                    </Button>
-                    <Button
-                      onClick={() => openConfigModal(false)}
-                      buttonType="secondary"
-                      buttonSize="normal"
-                    >
-                      New
-                    </Button>
-                    <Button
-                      onClick={handleSaveConfig}
-                      buttonType="primary"
-                      buttonSize="normal"
-                      loading={savePending}
-                      disabled={savePending || !renamer?.DefaultSettings}
-                      tooltip={!renamer?.DefaultSettings ? 'Renamer does not have any settings to save.' : ''}
-                    >
-                      Save
-                    </Button>
-                    <ConfigModal
-                      show={showConfigModal}
-                      onClose={toggleConfigModal}
-                      rename={configModelRename}
-                      config={selectedConfig}
-                      changeSelectedConfig={changeSelectedConfig}
-                    />
-                  </div>
-                </ShokoPanel>
-
-                {renamerSettingsExist && (
-                  <ShokoPanel title="Selected Renamer Config">
-                    {/* TODO: Maybe a todo... The transition div for checkbox is buggy when AnimateHeight is used. */}
-                    {/* It doesn't appear before a click event when height is changed. Adding showSetting force re-renders it. */}
-                    {newConfig && renamer?.Settings && showSettings && (
-                      <RenamerSettings
-                        newConfig={newConfig}
-                        setNewConfig={setNewConfig}
-                        settingsModel={renamer.Settings}
+                      {renamerConfigsQuery.data.length === 0 && (
+                        <option key="na" value="na">
+                          No renamer found!
+                        </option>
+                      )}
+                    </Select>
+                    <div className="flex justify-end gap-x-3 font-semibold">
+                      <Button
+                        onClick={handleSetAsDefault}
+                        buttonType="secondary"
+                        buttonSize="normal"
+                        loading={settingsPatchPending}
+                        disabled={(selectedConfig.Name === settings.Plugins.Renamer.DefaultRenamer)
+                          || settingsPatchPending}
+                        tooltip={selectedConfig.Name === settings.Plugins.Renamer.DefaultRenamer
+                          ? 'Already set as default!'
+                          : ''}
+                      >
+                        Set as default
+                      </Button>
+                      <Button
+                        onClick={handleDeleteConfig}
+                        buttonType="danger"
+                        buttonSize="normal"
+                        loading={deletePending}
+                        disabled={(selectedConfig.Name === settings.Plugins.Renamer.DefaultRenamer) || deletePending}
+                        tooltip={(selectedConfig.Name === settings.Plugins.Renamer.DefaultRenamer)
+                          ? 'Cannot delete default config!'
+                          : ''}
+                      >
+                        Delete
+                      </Button>
+                      <Button
+                        onClick={() => openConfigModal(true)}
+                        buttonType="secondary"
+                        buttonSize="normal"
+                      >
+                        Rename
+                      </Button>
+                      <Button
+                        onClick={() => openConfigModal(false)}
+                        buttonType="secondary"
+                        buttonSize="normal"
+                      >
+                        New
+                      </Button>
+                      <Button
+                        onClick={handleSaveConfig}
+                        buttonType="primary"
+                        buttonSize="normal"
+                        loading={savePending}
+                        disabled={savePending || !renamer?.DefaultSettings}
+                        tooltip={!renamer?.DefaultSettings ? 'Renamer does not have any settings to save.' : ''}
+                      >
+                        Save
+                      </Button>
+                      <ConfigModal
+                        show={showConfigModal}
+                        onClose={toggleConfigModal}
+                        rename={configModelRename}
+                        config={selectedConfig}
+                        changeSelectedConfig={changeSelectedConfig}
                       />
-                    )}
+                    </div>
                   </ShokoPanel>
-                )}
-              </div>
 
-              <ShokoPanel title="Selected Renamer Script" className="w-2/3" disableOverflow>
-                {newConfig && renamer?.Settings && (
-                  <RenamerScript
-                    newConfig={newConfig}
-                    setNewConfig={setNewConfig}
-                    settingsModel={renamer.Settings}
-                  />
-                )}
-              </ShokoPanel>
-            </>
+                  {renamerSettingsExist && (
+                    <ShokoPanel title="Selected Renamer Config">
+                      {/* TODO: Maybe a todo... The transition div for checkbox is buggy when AnimateHeight is used. */}
+                      {/* It doesn't appear before a click event when height is changed. Adding showSetting force re-renders it. */}
+                      {newConfig && renamer?.Settings && showSettings && (
+                        <RenamerSettings
+                          newConfig={newConfig}
+                          setNewConfig={setNewConfig}
+                          settingsModel={renamer.Settings}
+                        />
+                      )}
+                    </ShokoPanel>
+                  )}
+                </div>
+
+                <ShokoPanel title="Selected Renamer Script" className="w-2/3" disableOverflow>
+                  {newConfig && renamer?.Settings && (
+                    <RenamerScript
+                      newConfig={newConfig}
+                      setNewConfig={setNewConfig}
+                      settingsModel={renamer.Settings}
+                    />
+                  )}
+                </ShokoPanel>
+              </>
+            )}
+          </div>
+        </AnimateHeight>
+
+        <ShokoPanel title="Renamer Preview" className="min-h-160 grow">
+          {addedFiles.length === 0 && (
+            <div className="flex grow items-center justify-center font-semibold">No files selected!</div>
           )}
-        </div>
-      </AnimateHeight>
 
-      <ShokoPanel title="Renamer Preview" className="min-h-[40rem] grow">
-        {addedFiles.length === 0 && (
-          <div className="flex grow items-center justify-center font-semibold">No files selected!</div>
-        )}
-
-        {addedFiles.length > 0 && (
-          <UtilitiesTable
-            columns={columns}
-            count={addedFiles.length}
-            handleRowSelect={handleRowSelect}
-            rows={addedFiles}
-            rowSelection={rowSelection}
-            setSelectedRows={setRowSelection}
-            fetchNextPage={fetchPreviewPage}
-            isFetchingNextPage={previewPending}
-            isRenamer
-          />
-        )}
-      </ShokoPanel>
-    </div>
+          {addedFiles.length > 0 && (
+            <UtilitiesTable
+              columns={columns}
+              count={addedFiles.length}
+              handleRowSelect={handleRowSelect}
+              rows={addedFiles}
+              rowSelection={rowSelection}
+              setRowSelection={setRowSelection}
+              fetchNextPreviewPage={fetchPreviewPage}
+              isFetchingNextPage={previewPending}
+              isRenamer
+            />
+          )}
+        </ShokoPanel>
+      </div>
+    </>
   );
 };
 

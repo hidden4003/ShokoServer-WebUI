@@ -1,68 +1,80 @@
-import React from 'react';
+import type React from 'react';
+// eslint-disable-next-line no-restricted-imports
 import { toast } from 'react-toastify';
-import type { ToastContentProps, ToastOptions } from 'react-toastify';
-import {
-  mdiAlertCircleOutline,
-  mdiCheckboxMarkedCircleOutline,
-  mdiCloseCircleOutline,
-  mdiInformationOutline,
-} from '@mdi/js';
-import { Icon } from '@mdi/react';
+import type { ToastOptions } from 'react-toastify';
+import { mdiAlertCircleOutline, mdiCheckboxMarkedCircleOutline, mdiInformationOutline } from '@mdi/js';
 
-type Props = Partial<ToastContentProps> & {
-  header: string;
-  message?: React.ReactNode;
-  icon: string;
+import ToastComponent from '@/components/ToastComponent';
+import queryClient from '@/core/react-query/queryClient';
+
+import type { SettingsServerType, WebUISettingsType } from '@/core/types/api/settings';
+
+const showToast = (isSystemToast?: boolean) => {
+  if (isSystemToast) return true;
+
+  const settings = queryClient.getQueryData<SettingsServerType>(['settings'])!;
+
+  try {
+    const webuiSettings = JSON.parse(settings.WebUI_Settings) as WebUISettingsType;
+    return webuiSettings?.notifications;
+  } catch (_) {
+    return true;
+  }
 };
 
-const colorClass = {
-  success: 'text-panel-text-important',
-  error: 'text-panel-text-danger',
-  info: 'text-panel-text-primary',
-  warning: 'text-panel-text-warning',
+const success = (header: string, message?: React.ReactNode, options?: ToastOptions) => {
+  if (!showToast()) return undefined;
+
+  return toast.success(ToastComponent, {
+    data: {
+      header,
+      message,
+      icon: mdiCheckboxMarkedCircleOutline,
+    },
+    ...options,
+  });
 };
 
-const isColorClass = (type: string): type is keyof typeof colorClass => type in colorClass;
+const error = (header: string, message?: React.ReactNode, options?: ToastOptions) => {
+  if (!showToast()) return undefined;
 
-// eslint-disable-next-line react-refresh/only-export-components
-function Toast(props: Props) {
-  const { closeToast, header, icon, message, toastProps } = props;
-  const color = toastProps && 'type' in toastProps && isColorClass(toastProps.type) ? toastProps?.type : 'info';
+  return toast.error(ToastComponent, {
+    data: {
+      header,
+      message,
+      icon: mdiAlertCircleOutline,
+    },
+    ...options,
+  });
+};
 
-  return (
-    <div className="flex">
-      <span>
-        <Icon path={icon} size={1} className={colorClass[color]} />
-      </span>
-      <div className="ml-4 mr-8 flex grow flex-col">
-        <div className="font-semibold">{header}</div>
-        <div className="text-panel-text">{message}</div>
-      </div>
-      {toastProps?.autoClose && (
-        <span onClick={closeToast}>
-          <Icon path={mdiCloseCircleOutline} size={1} className="text-panel-text opacity-65" />
-        </span>
-      )}
-    </div>
-  );
-}
+const warning = (header: string, message?: React.ReactNode, options?: ToastOptions) => {
+  if (!showToast()) return undefined;
 
-const success = (header: string, message?: React.ReactNode, options?: ToastOptions) =>
-  toast.success(<Toast header={header} message={message} icon={mdiCheckboxMarkedCircleOutline} />, options);
+  return toast.warning(ToastComponent, {
+    data: {
+      header,
+      message,
+      icon: mdiAlertCircleOutline,
+    },
+    ...options,
+  });
+};
 
-const error = (header: string, message?: React.ReactNode, options?: ToastOptions) =>
-  toast.error(<Toast header={header} message={message} icon={mdiAlertCircleOutline} />, options);
+const info = (header: string, message?: React.ReactNode, options?: ToastOptions, isSystemToast?: boolean) => {
+  if (!showToast(isSystemToast)) return undefined;
 
-const warning = (header: string, message?: React.ReactNode, options?: ToastOptions) =>
-  toast.warning(<Toast header={header} message={message} icon={mdiAlertCircleOutline} />, options);
-
-const info = (header: string, message?: React.ReactNode, options?: ToastOptions) =>
-  toast.info(<Toast header={header} message={message} icon={mdiInformationOutline} />, options);
+  return toast.info(ToastComponent, {
+    data: {
+      header,
+      message,
+      icon: mdiInformationOutline,
+    },
+    ...options,
+  });
+};
 
 const dismiss = (id: number | string) => toast.dismiss(id);
-
-const infoUpdate = (id: number | string, header: string, message?: React.ReactNode) =>
-  toast.update(id, { render: <Toast header={header} message={message} icon={mdiInformationOutline} /> });
 
 const isActive = (id: number | string) => toast.isActive(id);
 
@@ -72,6 +84,5 @@ export default {
   warning,
   info,
   dismiss,
-  infoUpdate,
   isActive,
 };

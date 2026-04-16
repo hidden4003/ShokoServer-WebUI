@@ -1,10 +1,15 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router';
 import { mdiChevronRight } from '@mdi/js';
 import { Icon } from '@mdi/react';
 
 const TabButton = ({ id, name }: { id: string, name: string }) => (
-  <NavLink to={`../unrecognized/${id}`} className={({ isActive }) => (isActive ? 'text-panel-text-primary' : '')}>
+  <NavLink
+    to={`../unrecognized/${id}`}
+    className={(
+      { isActive },
+    ) => (isActive ? 'text-panel-text-primary' : 'hover:text-panel-text-primary transition-colors')}
+  >
     {name}
   </NavLink>
 );

@@ -1,16 +1,35 @@
 import React, { useEffect } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 import * as Sentry from '@sentry/react';
+import semver from 'semver';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useVersionQuery } from '@/core/react-query/init/queries';
+import { getMinimumServerVersion, isDebug } from '@/core/util';
+import useNavigateVoid from '@/hooks/useNavigateVoid';
 
 const SentryErrorBoundaryWrapper = () => {
+  const { pathname } = useLocation();
+  const navigate = useNavigateVoid();
   const versionQuery = useVersionQuery();
 
   useEffect(() => {
     Sentry.setTag('server_release', versionQuery.data?.Server?.Version ?? 'Unknown');
   }, [versionQuery.data]);
+
+  useEffect(() => {
+    if (isDebug()) return;
+
+    if (!versionQuery.data || versionQuery.data.Server.ReleaseChannel === 'Debug') return;
+
+    const isServerSupported = semver.gte(versionQuery.data.Server.Version, getMinimumServerVersion());
+
+    if (!isServerSupported) {
+      navigate('/webui/unsupported');
+    } else if (pathname === '/webui/unsupported') {
+      navigate('/webui');
+    }
+  }, [navigate, pathname, versionQuery.data]);
 
   return (
     <Sentry.ErrorBoundary

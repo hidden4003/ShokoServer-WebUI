@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  mdiContentCopy,
+  mdiClipboardOutline,
   mdiDatabaseSearchOutline,
   mdiFileDocumentMultipleOutline,
   mdiLoading,
@@ -9,7 +9,7 @@ import {
   mdiTrashCanOutline,
 } from '@mdi/js';
 import { Icon } from '@mdi/react';
-import { get, map } from 'lodash';
+import { map } from 'lodash';
 
 import DeleteFilesModal from '@/components/Dialogs/DeleteFilesModal';
 import FileInfo from '@/components/FileInfo';
@@ -23,7 +23,6 @@ import {
 } from '@/core/react-query/file/mutations';
 import { invalidateQueries } from '@/core/react-query/queryClient';
 import { copyToClipboard } from '@/core/util';
-import useEventCallback from '@/hooks/useEventCallback';
 
 import type { FileType } from '@/core/types/api/file';
 
@@ -46,7 +45,7 @@ const EpisodeFiles = ({ anidbSeriesId, episodeFiles, episodeId, seriesId }: Prop
     [selectedFileToDelete],
   );
 
-  const handleDelete = useEventCallback(() => {
+  const handleDelete = () => {
     if (!selectedFileToDelete) return;
     deleteFile({ fileId: selectedFileToDelete.ID, removeFolder: true }, {
       onSuccess: () => {
@@ -55,12 +54,12 @@ const EpisodeFiles = ({ anidbSeriesId, episodeFiles, episodeId, seriesId }: Prop
       },
       onError: error => toast.error(`Failed to delete file! ${error.message}`),
     });
-  });
+  };
 
-  const closeDeleteModal = useEventCallback(() => {
+  const closeDeleteModal = () => {
     setSelectedFileToDelete(null);
     setShowDeleteModal(false);
-  });
+  };
 
   const handleAddToMyList = (id: number) =>
     addFileToMyList(id, {
@@ -82,7 +81,7 @@ const EpisodeFiles = ({ anidbSeriesId, episodeFiles, episodeId, seriesId }: Prop
     });
 
   const handleCopyToClipboard = (id: string) => {
-    copyToClipboard(id, 'ShokoID').catch(console.error);
+    copyToClipboard(id, 'Shoko File ID').catch(console.error);
   };
 
   if (!episodeFiles.length || episodeFiles.length < 1) {
@@ -92,8 +91,7 @@ const EpisodeFiles = ({ anidbSeriesId, episodeFiles, episodeId, seriesId }: Prop
   return (
     <div className="flex flex-col gap-y-6 p-6 pt-4">
       {map(episodeFiles, (file) => {
-        const ReleaseGroupID = get(file, 'AniDB.ReleaseGroup.ID', 0);
-        const ReleaseGroupName = get(file, 'AniDB.ReleaseGroup.Name', null);
+        const releaseGroup = file.Release?.Group;
 
         return (
           <div className="flex flex-col gap-y-6" key={file.ID}>
@@ -136,13 +134,13 @@ const EpisodeFiles = ({ anidbSeriesId, episodeFiles, episodeId, seriesId }: Prop
                 >
                   <Icon
                     className="hidden text-panel-icon-action lg:inline"
-                    path={mdiContentCopy}
+                    path={mdiClipboardOutline}
                     size={1}
                   />
                   Copy ShokoID
                 </div>
-                {file.AniDB && (
-                  <a href={`https://anidb.net/file/${file.AniDB.ID}`} target="_blank" rel="noopener noreferrer">
+                {file.Release?.ReleaseURI?.startsWith('https://anidb.net/file/') && (
+                  <a href={file.Release.ReleaseURI} target="_blank" rel="noopener noreferrer">
                     <div className="flex items-center gap-x-2 font-semibold text-panel-text-primary">
                       <div className="metadata-link-icon AniDB" />
                       AniDB
@@ -150,15 +148,15 @@ const EpisodeFiles = ({ anidbSeriesId, episodeFiles, episodeId, seriesId }: Prop
                     </div>
                   </a>
                 )}
-                {ReleaseGroupID > 0 && (
+                {releaseGroup?.Source === 'AniDB' && (
                   <a
-                    href={`https://anidb.net/group/${ReleaseGroupID}/anime/${anidbSeriesId}`}
+                    href={`https://anidb.net/group/${releaseGroup.ID}/anime/${anidbSeriesId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
                     <div className="flex items-center gap-x-2 font-semibold text-panel-text-primary">
                       <div className="metadata-link-icon AniDB" />
-                      {ReleaseGroupName ?? 'Unknown'}
+                      {releaseGroup.Name}
                       &nbsp;(AniDB)
                       <Icon className="text-panel-icon-action" path={mdiOpenInNew} size={1} />
                     </div>

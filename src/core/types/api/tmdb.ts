@@ -8,12 +8,14 @@ export type TmdbEpisodeType = {
   Overview: string;
   EpisodeNumber: number;
   SeasonNumber: number;
+  AiredAt: string;
 };
 
 export type TmdbBaseItemType = {
   ID: number;
   Title: string;
   Overview: string;
+  ReleasedAt: string;
 };
 
 export type TmdbMovieType = TmdbBaseItemType;
@@ -25,14 +27,14 @@ export type TmdbXrefType = {
   AnidbEpisodeID: number;
 };
 
-export type TmdbEpisodeXRefType = {
+export type TmdbEpisodeXrefType = {
   TmdbShowID: number;
-  TmdbEpisodeID?: number;
+  TmdbEpisodeID: number;
   Index: number;
   Rating: MatchRatingType;
 } & TmdbXrefType;
 
-export type TmdbMovieXRefType = {
+export type TmdbMovieXrefType = {
   TmdbMovieID: number;
 } & TmdbXrefType;
 

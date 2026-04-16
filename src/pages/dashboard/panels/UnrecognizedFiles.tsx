@@ -1,21 +1,34 @@
 import React, { useMemo } from 'react';
-import { useSelector } from 'react-redux';
+import { NavLink } from 'react-router';
+import { mdiBeta, mdiChevronRight, mdiCreation, mdiDatabaseSearchOutline } from '@mdi/js';
+import Icon from '@mdi/react';
 
+import Button from '@/components/Input/Button';
 import ShokoPanel from '@/components/Panels/ShokoPanel';
+import toast from '@/components/Toast';
 import AVDumpFileIcon from '@/components/Utilities/Unrecognized/AvDumpFileIcon';
+import { useRescanFileMutation } from '@/core/react-query/file/mutations';
 import { useFilesInfiniteQuery } from '@/core/react-query/file/queries';
+import { useSelector } from '@/core/store';
 import { FileSortCriteriaEnum, type FileType } from '@/core/types/api/file';
 import { dayjs } from '@/core/util';
-
-import type { RootState } from '@/core/store';
+import useNavigateVoid from '@/hooks/useNavigateVoid';
 
 const FileItem = ({ file }: { file: FileType }) => {
   const createdTime = dayjs(file.Created);
+  const navigate = useNavigateVoid();
   const fileName = file.Locations[0]?.RelativePath.split(/[/\\]/g).pop() ?? '<missing file path>';
+  const { mutate: rescanFile } = useRescanFileMutation();
+  const handleRescan = (id: number) =>
+    rescanFile(id, {
+      onSuccess: () => toast.success('Rescanning file!'),
+      onError: error => toast.error(`Rescan failed for file! ${error.message}`),
+    });
+
   return (
     <div
       key={file.ID}
-      className="mr-3 flex items-center rounded-md p-3 even:bg-panel-background-alt"
+      className="group mr-3 flex items-center rounded-md p-3 even:bg-panel-background-alt"
     >
       <div
         className="flex grow flex-col"
@@ -31,12 +44,36 @@ const FileItem = ({ file }: { file: FileType }) => {
           {fileName}
         </span>
       </div>
+      <Button onClick={() => handleRescan(file.ID)} tooltip="Rescan File">
+        <Icon
+          className="text-panel-icon-action"
+          path={mdiDatabaseSearchOutline}
+          size={1}
+        />
+      </Button>
+      <Button
+        tooltip="Link With Providers (β)"
+        className="relative ml-3"
+        onClick={() =>
+          navigate('/webui/utilities/unrecognized/files/link-with-providers', { state: { selectedRows: [file] } })}
+      >
+        <Icon
+          path={mdiCreation}
+          className="text-panel-icon-action"
+          size={1}
+        />
+        <Icon
+          path={mdiBeta}
+          size={0.5}
+          className="absolute -right-1.5 -bottom-1 stroke-[8px] text-panel-icon-action ease-in-out [paint-order:stroke] group-odd:stroke-panel-background group-even:stroke-panel-background-alt"
+        />
+      </Button>
       <AVDumpFileIcon truck file={file} />
     </div>
   );
 };
 
-function UnrecognizedFiles() {
+const UnrecognizedFiles = () => {
   const filesQuery = useFilesInfiniteQuery({
     pageSize: 20,
     include_only: ['Unrecognized'],
@@ -55,13 +92,16 @@ function UnrecognizedFiles() {
     [filesQuery.data, filesQuery.isSuccess],
   );
 
-  const layoutEditMode = useSelector((state: RootState) => state.mainpage.layoutEditMode);
+  const layoutEditMode = useSelector(state => state.mainpage.layoutEditMode);
 
   return (
     <ShokoPanel
       title={
-        <div className="flex w-full flex-row justify-between">
-          <div>Unrecognized Files</div>
+        <div className="flex w-full flex-row items-center gap-x-2">
+          <span>Unrecognized Files</span>
+          <NavLink to="/webui/utilities/unrecognized">
+            <Icon className="text-panel-icon-action" path={mdiChevronRight} size={1} />
+          </NavLink>
         </div>
       }
       options={
@@ -77,11 +117,11 @@ function UnrecognizedFiles() {
       {files.map(file => <FileItem file={file} key={file.ID} />)}
       {fileCount === 0 && (
         <div className="flex grow items-center justify-center pb-14 font-semibold" key="no-files">
-          No Unrecognized Files, Good Job!
+          No unrecognized files. Good job!
         </div>
       )}
     </ShokoPanel>
   );
-}
+};
 
 export default UnrecognizedFiles;

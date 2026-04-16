@@ -1,13 +1,11 @@
 import React, { useMemo } from 'react';
-import { useDispatch } from 'react-redux';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import {
   mdiAlertCircleOutline,
   mdiCalendarMonthOutline,
   mdiEyeOutline,
   mdiFileDocumentMultipleOutline,
   mdiPencilCircleOutline,
-  mdiTagTextOutline,
   mdiTelevision,
   mdiTelevisionAmbientLight,
 } from '@mdi/js';
@@ -16,13 +14,15 @@ import cx from 'classnames';
 import { reduce } from 'lodash';
 
 import BackgroundImagePlaceholderDiv from '@/components/BackgroundImagePlaceholderDiv';
+import TagButton from '@/components/Collection/TagButton';
 import { listItemSize } from '@/components/Collection/constants';
+import Button from '@/components/Input/Button';
 import { useSeriesTagsQuery } from '@/core/react-query/series/queries';
 import { useSettingsQuery } from '@/core/react-query/settings/queries';
-import { setGroupId } from '@/core/slices/modals/editGroup';
-import { setSeriesId } from '@/core/slices/modals/editSeries';
 import { dayjs, formatThousand } from '@/core/util';
-import useEventCallback from '@/hooks/useEventCallback';
+import useEditGroupCallback from '@/hooks/collection/useEditGroupCallback';
+import useEditSeriesCallback from '@/hooks/collection/useEditSeriesCallback';
+import useRouteLink from '@/hooks/collection/useRouteLink';
 import useMainPoster from '@/hooks/useMainPoster';
 
 import CleanDescription from './CleanDescription';
@@ -45,18 +45,6 @@ const renderFileSources = (sources: SeriesSizesFileSourcesType): string => {
   return output.join(' | ');
 };
 
-const SeriesTag = ({ text, type }: { text: string, type: 'AniDB' | 'User' }) => (
-  <div
-    className={cx(
-      'text-xs font-semibold flex gap-x-2 items-center border-2 border-panel-tags rounded-lg p-2 whitespace-nowrap capitalize',
-      type === 'User' ? 'text-panel-text-important' : 'text-panel-text-primary',
-    )}
-  >
-    <Icon path={mdiTagTextOutline} size="1rem" />
-    <span className="text-panel-text">{text}</span>
-  </div>
-);
-
 type Props = {
   item: CollectionGroupType | SeriesType;
   isSeries?: boolean;
@@ -64,7 +52,7 @@ type Props = {
   isSidebarOpen: boolean;
 };
 
-const ListViewItem = ({ groupExtras, isSeries, isSidebarOpen, item }: Props) => {
+const ListViewItem = ({ groupExtras, isSeries = false, isSidebarOpen, item }: Props) => {
   const settings = useSettingsQuery().data;
   const { showCustomTags, showGroupIndicator, showItemType, showTopTags } = settings.WebUI_Settings.collection.list;
 
@@ -102,20 +90,6 @@ const ListViewItem = ({ groupExtras, isSeries, isSidebarOpen, item }: Props) => 
     ];
   }, [isSeries, item, groupExtras?.AirDate, groupExtras?.EndDate]);
 
-  const viewRouteLink = () => {
-    let link = '/webui/collection/';
-
-    if (isSeries) {
-      link += `series/${item.IDs.ID}`;
-    } else if (item.Size === 1) {
-      link += `series/${(item as CollectionGroupType).IDs.MainSeries}`;
-    } else {
-      link += `group/${item.IDs.ID}`;
-    }
-
-    return link;
-  };
-
   const tags = useMemo(
     () => {
       let tempTags = (isSeries ? tagsQuery?.data : groupExtras?.Tags) ?? [];
@@ -127,19 +101,9 @@ const ListViewItem = ({ groupExtras, isSeries, isSidebarOpen, item }: Props) => 
     [isSeries, groupExtras?.Tags, tagsQuery.data, showCustomTags, showTopTags],
   );
 
-  const dispatch = useDispatch();
-
-  const editSeriesModalCallback = useEventCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
-    event.preventDefault();
-    dispatch(setSeriesId(('MainSeries' in item.IDs) ? item.IDs.MainSeries : item.IDs.ID));
-  });
-
-  const editGroupModalCallback = useEventCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
-    event.preventDefault();
-    dispatch(setGroupId(item.IDs.ParentGroup ?? item.IDs.TopLevelGroup));
-  });
+  const routeLink = useRouteLink(item);
+  const editSeriesModalCallback = useEditSeriesCallback(item);
+  const editGroupModalCallback = useEditGroupCallback(item);
 
   return (
     <div
@@ -149,24 +113,21 @@ const ListViewItem = ({ groupExtras, isSeries, isSidebarOpen, item }: Props) => 
       }}
     >
       <div className="flex gap-x-3">
-        <Link to={viewRouteLink()}>
+        <Link to={routeLink}>
           <BackgroundImagePlaceholderDiv
             image={poster}
-            className="group h-[12.5625rem] w-[8.625rem] shrink-0 rounded-lg drop-shadow-md"
+            className="group h-[13.438rem] w-37 shrink-0 rounded-lg drop-shadow-md"
             hidePlaceholderOnHover
             zoomOnHover
           >
             <div className="pointer-events-none z-10 flex h-full bg-panel-background-poster-overlay p-3 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
-              <div
+              <Button
                 className="pointer-events-auto h-fit"
                 onClick={(isSeries || item.Size === 1) ? editSeriesModalCallback : editGroupModalCallback}
+                tooltip={(isSeries || item.Size === 1) ? 'Edit Series' : 'Edit Group'}
               >
-                <Icon
-                  path={mdiPencilCircleOutline}
-                  size="2rem"
-                  className="text-panel-icon"
-                />
-              </div>
+                <Icon path={mdiPencilCircleOutline} size="2rem" />
+              </Button>
             </div>
             {showGroupIndicator && groupCount > 1 && (
               <div className="absolute bottom-0 left-0 flex w-full justify-center rounded-bl-md bg-panel-background-overlay py-1.5 text-sm font-semibold opacity-100 transition-opacity group-hover:opacity-0">
@@ -177,7 +138,16 @@ const ListViewItem = ({ groupExtras, isSeries, isSidebarOpen, item }: Props) => 
           </BackgroundImagePlaceholderDiv>
         </Link>
         <div className="flex flex-col gap-y-3">
-          <div className="font-semibold" title={item.Name}>{item.Name}</div>
+          <div className="font-semibold">
+            <Link
+              to={routeLink}
+              className="transition-colors hover:text-panel-text-primary"
+              data-tooltip-id="tooltip"
+              data-tooltip-content={item.Name}
+            >
+              {item.Name}
+            </Link>
+          </div>
 
           <div className="flex flex-col gap-y-3">
             <div className="flex flex-nowrap items-center gap-x-3">
@@ -214,7 +184,7 @@ const ListViewItem = ({ groupExtras, isSeries, isSidebarOpen, item }: Props) => 
             <div className="flex flex-nowrap items-center gap-x-3">
               <div className="flex items-center gap-x-2 align-middle">
                 <Icon path={mdiFileDocumentMultipleOutline} size={1} />
-                <div className="flex gap-x-2 text-sm font-semibold ">
+                <div className="flex gap-x-2 text-sm font-semibold">
                   <div className="flex gap-x-1">
                     <span>EP:</span>
                     {formatThousand(item.Sizes.Local.Episodes)}
@@ -256,7 +226,7 @@ const ListViewItem = ({ groupExtras, isSeries, isSidebarOpen, item }: Props) => 
                   )}
                 </div>
               </div>
-              <div className={cx('gap-x-2 flex align-middle items-center', missingEpisodesCount === 0 && 'hidden')}>
+              <div className={cx('flex items-center gap-x-2 align-middle', missingEpisodesCount === 0 && 'hidden')}>
                 <Icon className="text-panel-text-warning" path={mdiAlertCircleOutline} size={1} />
                 <div className="flex gap-x-2 text-sm font-semibold">
                   {item.Sizes.Total.Episodes - item.Sizes.Local.Episodes !== 0 && (
@@ -284,7 +254,9 @@ const ListViewItem = ({ groupExtras, isSeries, isSidebarOpen, item }: Props) => 
       </div>
       {tags.length > 0 && (
         <div className="flex h-9 flex-wrap items-start gap-x-2 overflow-hidden">
-          {tags.map(tag => <SeriesTag key={`${groupExtras?.ID}-${tag.Name}`} text={tag.Name} type={tag.Source} />)
+          {tags.map(tag => (
+            <TagButton key={`${groupExtras?.ID}-${tag.Name}`} text={tag.Name} tagType={tag.Source} type="Collection" />
+          ))
             ?? ''}
         </div>
       )}

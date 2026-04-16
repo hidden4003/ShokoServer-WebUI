@@ -3,9 +3,7 @@ import { mdiStar, mdiStarOutline } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import { toNumber } from 'lodash';
 
-import toast from '@/components/Toast';
 import { useVoteSeriesMutation } from '@/core/react-query/series/mutations';
-import useEventCallback from '@/hooks/useEventCallback';
 
 type Props = {
   seriesId: number;
@@ -31,24 +29,21 @@ const StarIcon = React.memo(({ handleHover, handleVote, hovered, index }: StarIc
 ));
 
 const SeriesRating = ({ ratingValue, seriesId }: Props) => {
-  const { mutate: voteSeries } = useVoteSeriesMutation();
+  const { mutate: voteSeries } = useVoteSeriesMutation(seriesId);
 
   const [hoveredStar, setHoveredStar] = useState(ratingValue - 1);
 
-  const handleVote = useEventCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    voteSeries({ seriesId, rating: toNumber(event.currentTarget.id) + 1 }, {
-      onSuccess: () => toast.success('Voted!'),
-      onError: () => toast.error('Failed to vote!'),
-    });
-  });
+  const handleVote = (event: React.MouseEvent<HTMLDivElement>) => {
+    voteSeries(toNumber(event.currentTarget.id) + 1);
+  };
 
-  const handleClear = useEventCallback(() => {
+  const handleClear = () => {
     setHoveredStar(ratingValue - 1);
-  });
+  };
 
-  const handleHover = useEventCallback((event: React.MouseEvent<HTMLDivElement>) => {
+  const handleHover = (event: React.MouseEvent<HTMLDivElement>) => {
     setHoveredStar(toNumber(event.currentTarget.id));
-  });
+  };
 
   return (
     <div className="flex gap-x-0.5" id="-1" onMouseLeave={handleClear}>

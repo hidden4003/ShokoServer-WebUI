@@ -1,25 +1,22 @@
 import React, { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { mdiCloseCircleOutline, mdiOpenInNew, mdiPencilCircleOutline, mdiPlusCircleOutline } from '@mdi/js';
 import { Icon } from '@mdi/react';
 
 import Button from '@/components/Input/Button';
 import { invalidateQueries } from '@/core/react-query/queryClient';
-import { useDeleteSeriesTvdbLinkMutation } from '@/core/react-query/series/mutations';
 import { useDeleteTmdbLinkMutation } from '@/core/react-query/tmdb/mutations';
-import useEventCallback from '@/hooks/useEventCallback';
+import useNavigateVoid from '@/hooks/useNavigateVoid';
 
 type Props = {
   id?: number;
   seriesId: number;
-  site: 'AniDB' | 'TMDB' | 'TvDB' | 'TraktTv';
+  site: 'AniDB' | 'TMDB';
   type?: 'Movie' | 'Show';
 };
 
-const MetadataLink = ({ id, seriesId, site, type }: Props) => {
-  const navigate = useNavigate();
+const SeriesMetadata = ({ id, seriesId, site, type }: Props) => {
+  const navigate = useNavigateVoid();
   const { mutate: deleteTmdbLink } = useDeleteTmdbLinkMutation(seriesId, type ?? 'Movie');
-  const { mutate: deleteTvdbLink } = useDeleteSeriesTvdbLinkMutation();
 
   const siteLink = useMemo(() => {
     if (!id) return '#';
@@ -28,11 +25,6 @@ const MetadataLink = ({ id, seriesId, site, type }: Props) => {
         return `https://anidb.net/anime/${id}`;
       case 'TMDB':
         return `https://www.themoviedb.org/${type === 'Show' ? 'tv' : 'movie'}/${id}`;
-      case 'TvDB':
-        return `https://thetvdb.com/?tab=series&id=${id}`;
-      case 'TraktTv':
-        // TODO: Figure how to get trakt series link using ID
-        return '#';
       default:
         return '#';
     }
@@ -40,23 +32,20 @@ const MetadataLink = ({ id, seriesId, site, type }: Props) => {
 
   const canAddLink = useMemo(() => site === 'TMDB', [site]);
   const canEditLink = useMemo(() => site === 'TMDB', [site]);
-  const canRemoveLink = useMemo(() => ['TMDB', 'TvDB'].includes(site), [site]);
+  const canRemoveLink = useMemo(() => site === 'TMDB', [site]);
 
-  const addLink = useEventCallback(() => {
+  const addLink = () => {
     navigate('../tmdb-linking');
-  });
+  };
 
-  const editLink = useEventCallback(() => {
+  const editLink = () => {
     if (!id || !type) return;
     navigate(`../tmdb-linking?type=${type}&id=${id}`);
-  });
+  };
 
-  const removeLink = useEventCallback(() => {
+  const removeLink = () => {
     if (!id) return;
     switch (site) {
-      case 'TvDB':
-        deleteTvdbLink(seriesId);
-        break;
       case 'TMDB':
         deleteTmdbLink({ ID: id }, {
           onSuccess: () => invalidateQueries(['series', seriesId]),
@@ -65,7 +54,7 @@ const MetadataLink = ({ id, seriesId, site, type }: Props) => {
       default:
         break;
     }
-  });
+  };
 
   return (
     <div className="w-full rounded-lg border border-panel-border bg-panel-background px-4 py-3">
@@ -97,19 +86,19 @@ const MetadataLink = ({ id, seriesId, site, type }: Props) => {
               ? (
                 <>
                   {canEditLink && (
-                    <Button onClick={editLink} tooltip="Edit link">
+                    <Button onClick={editLink} tooltip="Edit Link">
                       <Icon className="text-panel-icon-action" path={mdiPencilCircleOutline} size={1} />
                     </Button>
                   )}
                   {canRemoveLink && (
-                    <Button onClick={removeLink} tooltip="Remove link">
+                    <Button onClick={removeLink} tooltip="Remove Link">
                       <Icon className="text-panel-icon-danger" path={mdiCloseCircleOutline} size={1} />
                     </Button>
                   )}
                 </>
               )
               : canAddLink && (
-                <Button onClick={addLink} tooltip="Add link">
+                <Button onClick={addLink} tooltip="Add Link">
                   <Icon className="text-panel-icon-action" path={mdiPlusCircleOutline} size={1} />
                 </Button>
               )}
@@ -120,4 +109,4 @@ const MetadataLink = ({ id, seriesId, site, type }: Props) => {
   );
 };
 
-export default MetadataLink;
+export default SeriesMetadata;

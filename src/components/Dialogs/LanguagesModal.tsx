@@ -8,14 +8,13 @@ import Checkbox from '@/components/Input/Checkbox';
 import ModalPanel from '@/components/Panels/ModalPanel';
 import { usePatchSettingsMutation } from '@/core/react-query/settings/mutations';
 import { useSettingsQuery, useSupportedLanguagesQuery } from '@/core/react-query/settings/queries';
-import useEventCallback from '@/hooks/useEventCallback';
 
 type Props = {
   type: 'Series' | 'Episode' | 'Description' | null;
   onClose: () => void;
 };
 
-function LanguagesModal({ onClose, type }: Props) {
+const LanguagesModal = ({ onClose, type }: Props) => {
   const settings = useSettingsQuery().data;
 
   const languagesQuery = useSupportedLanguagesQuery();
@@ -38,7 +37,7 @@ function LanguagesModal({ onClose, type }: Props) {
 
   const [languages, setLanguages] = useState([] as string[]);
 
-  const handleSave = useEventCallback(() => {
+  const handleSave = () => {
     let preferenceType = 'SeriesTitleLanguageOrder';
     if (type === 'Episode') {
       preferenceType = 'EpisodeTitleLanguageOrder';
@@ -47,17 +46,15 @@ function LanguagesModal({ onClose, type }: Props) {
     }
 
     patchSettings({
-      newSettings: {
-        ...settings,
-        Language: {
-          ...settings.Language,
-          [preferenceType]: languages,
-        },
+      ...settings,
+      Language: {
+        ...settings.Language,
+        [preferenceType]: languages,
       },
     }, {
       onSuccess: onClose,
     });
-  });
+  };
 
   useEffect(() => {
     if (type !== null) setLanguages(LanguagePreference);
@@ -79,6 +76,7 @@ function LanguagesModal({ onClose, type }: Props) {
       show={type !== null}
       onRequestClose={onClose}
       header={`${type} Languages`}
+      size="md"
     >
       {languagesQuery.isPending
         && <Icon path={mdiLoading} spin size={3} className="mx-auto text-panel-text-primary" />}
@@ -106,6 +104,6 @@ function LanguagesModal({ onClose, type }: Props) {
       </div>
     </ModalPanel>
   );
-}
+};
 
 export default LanguagesModal;

@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { Outlet, useParams } from 'react-router';
-import { Link, NavLink, useNavigate, useOutletContext } from 'react-router-dom';
+import { Link, NavLink, Outlet, useOutletContext, useParams } from 'react-router';
 import useMeasure from 'react-use-measure';
 import {
   mdiAccountGroupOutline,
@@ -16,7 +14,7 @@ import {
 } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import cx from 'classnames';
-import { get, toNumber } from 'lodash';
+import { toNumber } from 'lodash';
 
 import EditSeriesModal from '@/components/Collection/Series/EditSeriesModal';
 import SeriesTopPanel from '@/components/Collection/SeriesTopPanel';
@@ -25,14 +23,14 @@ import { useGroupQuery } from '@/core/react-query/group/queries';
 import { useSeriesImagesQuery, useSeriesQuery } from '@/core/react-query/series/queries';
 import { useSettingsQuery } from '@/core/react-query/settings/queries';
 import { setSeriesId } from '@/core/slices/modals/editSeries';
-import useEventCallback from '@/hooks/useEventCallback';
+import { useDispatch } from '@/core/store';
+import useNavigateVoid from '@/hooks/useNavigateVoid';
 
 import type { SeriesContextType } from '@/components/Collection/constants';
 import type { ImageType } from '@/core/types/api/common';
 import type { SeriesType } from '@/core/types/api/series';
 
-type SeriesTabProps = (props: { icon: string, text: string, to: string }) => React.ReactNode;
-const SeriesTab: SeriesTabProps = ({ icon, text, to }) => (
+const SeriesTab = ({ icon, text, to }: { icon: string, text: string, to: string }) => (
   <NavLink
     to={to}
     className={({ isActive }) =>
@@ -40,6 +38,7 @@ const SeriesTab: SeriesTabProps = ({ icon, text, to }) => (
         'flex items-center gap-x-3 transition-colors hover:text-panel-text-primary',
         isActive && 'text-panel-text-primary',
       )}
+    replace
   >
     <Icon path={icon} size={1} />
     {text}
@@ -51,16 +50,13 @@ const getImagePath = ({ ID, Source, Type }: ImageType) => `/api/v3/Image/${Sourc
 const languageMapping = { 'x-jat': 'ja', 'x-kot': 'ko', 'x-zht': 'zh-hans' };
 
 const Series = () => {
-  const navigate = useNavigate();
+  const navigate = useNavigateVoid();
   const { seriesId } = useParams();
 
-  const { showRandomBackdrop } = useSettingsQuery().data.WebUI_Settings.collection.image;
   const seriesQuery = useSeriesQuery(toNumber(seriesId!), { includeDataFrom: ['AniDB', 'TMDB'] }, !!seriesId);
   const series = useMemo(() => seriesQuery?.data ?? {} as SeriesType, [seriesQuery.data]);
-  const imagesQuery = useSeriesImagesQuery(toNumber(seriesId!), !!seriesId);
   const groupQuery = useGroupQuery(series?.IDs?.ParentGroup ?? 0, !!series?.IDs?.ParentGroup);
 
-  const [backdrop, setBackdrop] = useState<ImageType>();
   const { scrollRef } = useOutletContext<{ scrollRef: React.RefObject<HTMLDivElement> }>();
 
   const dispatch = useDispatch();
@@ -76,23 +72,24 @@ const Series = () => {
     ];
   }, [series]);
 
-  const onClickHandler = useEventCallback(() => {
+  const onClickHandler = () => {
     dispatch(setSeriesId(toNumber(seriesId) ?? -1));
-  });
+  };
 
+  const { showRandomBackdrop } = useSettingsQuery().data.WebUI_Settings.collection.image;
+  const imagesQuery = useSeriesImagesQuery(toNumber(seriesId!), !!seriesId && showRandomBackdrop);
+  const [backdrop, setBackdrop] = useState<ImageType>();
   useEffect(() => {
-    if (!imagesQuery.isSuccess) return;
-
-    const allBackdrops: ImageType[] = get(imagesQuery.data, 'Backdrops', []);
-    if (!Array.isArray(allBackdrops) || allBackdrops.length === 0) return;
-
-    if (showRandomBackdrop) {
-      setBackdrop(allBackdrops[Math.floor(Math.random() * allBackdrops.length)]);
+    if (!showRandomBackdrop) {
+      setBackdrop(series.Images?.Backdrops?.[0]);
       return;
     }
 
-    setBackdrop(allBackdrops.find(image => image.Preferred) ?? allBackdrops[0]);
-  }, [imagesQuery.data, imagesQuery.isSuccess, series, showRandomBackdrop]);
+    const allBackdrops = imagesQuery.data?.Backdrops ?? [];
+    if (allBackdrops.length === 0) return;
+
+    setBackdrop(allBackdrops[Math.floor(Math.random() * allBackdrops.length)]);
+  }, [imagesQuery.data, series, showRandomBackdrop]);
 
   const [containerRef, containerBounds] = useMeasure();
 
@@ -156,10 +153,11 @@ const Series = () => {
 
       <EditSeriesModal />
 
-      <Outlet context={{ backdrop, scrollRef } satisfies SeriesContextType} />
+      <Outlet context={{ backdrop, scrollRef, series } satisfies SeriesContextType} />
 
       <div
-        className="fixed left-0 top-0 -z-10 w-full bg-cover bg-fixed opacity-5"
+        id="series-background"
+        className="fixed top-0 left-0 -z-10 w-full bg-cover bg-fixed opacity-5"
         // If this height feels like a hack, you figure out how to fix it
         // 3rem accounts for the top and bottom padding of the container (1.5rem each side)
         style={{

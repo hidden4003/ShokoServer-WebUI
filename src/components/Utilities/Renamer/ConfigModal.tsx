@@ -8,7 +8,6 @@ import ModalPanel from '@/components/Panels/ModalPanel';
 import toast from '@/components/Toast';
 import { useRenamerNewConfigMutation, useRenamerPatchConfigMutation } from '@/core/react-query/renamer/mutations';
 import { useRenamerConfigsQuery, useRenamersQuery } from '@/core/react-query/renamer/queries';
-import useEventCallback from '@/hooks/useEventCallback';
 
 import type { RenamerConfigType } from '@/core/types/api/renamer';
 
@@ -72,7 +71,7 @@ const ConfigModal = (props: Props) => {
           },
         );
       }
-    } catch (error) {
+    } catch (_) {
       changeSelectedConfig(config.Name);
       toast.error(`Error while ${rename ? 'renaming' : 'creating'} config!`);
       return;
@@ -82,9 +81,9 @@ const ConfigModal = (props: Props) => {
     onClose();
   };
 
-  const handleSave = useEventCallback(() => {
+  const handleSave = () => {
     handleSaveAsync().catch(console.error);
-  });
+  };
 
   const configExists = useMemo(
     () => !!find(renamerConfigs, item => item.Name === configName),
@@ -102,12 +101,12 @@ const ConfigModal = (props: Props) => {
         label="Renamer"
         id="renamer"
         value={selectedRenamer}
-        onChange={e => setSelectedRenamer(e.target.value)}
+        onChange={event => setSelectedRenamer(event.target.value)}
         disabled={rename}
       >
         {renamers?.map(renamer => (
-          <option key={renamer.Name} value={renamer.Name}>
-            {renamer.Name}
+          <option key={renamer.RenamerID} value={renamer.RenamerID}>
+            {`${renamer.Name} - ${renamer.Version}`}
           </option>
         ))}
 
@@ -129,7 +128,7 @@ const ConfigModal = (props: Props) => {
         type="text"
         label="Config Name"
         value={configName}
-        onChange={e => setConfigName(e.target.value)}
+        onChange={event => setConfigName(event.target.value)}
       />
 
       <div className="flex justify-end gap-x-3 font-semibold">

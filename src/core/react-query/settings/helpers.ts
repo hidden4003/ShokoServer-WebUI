@@ -1,8 +1,7 @@
-import semver from 'semver';
+import { merge } from 'lodash';
 
 import { webuiSettingsPatches } from '@/core/patches';
 import { LanguageSource } from '@/core/types/api/settings';
-import { uiVersion } from '@/core/util';
 
 import type { SupportedLanguagesResponseType } from '@/core/react-query/settings/types';
 import type { SettingsServerType, SettingsType, WebUISettingsType } from '@/core/types/api/settings';
@@ -66,7 +65,7 @@ const initialLayout = {
         static: false,
       },
       {
-        i: 'importFolders',
+        i: 'managedFolders',
         x: 6,
         y: 37,
         w: 3,
@@ -189,7 +188,7 @@ const initialLayout = {
         static: false,
       },
       {
-        i: 'importFolders',
+        i: 'managedFolders',
         x: 5,
         y: 51,
         w: 5,
@@ -264,8 +263,10 @@ export const initialSettings: SettingsType = {
     settingsRevision: 0,
     theme: 'theme-shoko-gray',
     toastPosition: 'bottom-right',
-    updateChannel: semver.prerelease(uiVersion()) ? 'Dev' : 'Stable',
+    updateChannel: 'Auto',
+    serverUpdateChannel: 'Auto',
     layout: initialLayout,
+    releaseInfoProviders: [],
     collection: {
       view: 'poster',
       poster: {
@@ -287,6 +288,9 @@ export const initialSettings: SettingsType = {
       tmdb: {
         includeRestricted: false,
       },
+      anidb: {
+        filterDescription: false,
+      },
     },
     dashboard: {
       hideQueueProcessor: false,
@@ -294,17 +298,20 @@ export const initialSettings: SettingsType = {
       hideRecentlyImported: false,
       hideCollectionStats: false,
       hideMediaType: false,
-      hideImportFolders: false,
+      hideManagedFolders: false,
       hideShokoNews: false,
       hideContinueWatching: false,
       hideNextUp: false,
       hideUpcomingAnime: false,
       hideRecommendedAnime: false,
       combineContinueWatching: false,
+      useThumbnailsForEpisodes: false,
       hideR18Content: true,
       shokoNewsPostsCount: 5,
       recentlyImportedEpisodesCount: 30,
       recentlyImportedSeriesCount: 20,
+      recentlyImportedView: 'episodes',
+      upcomingAnimeView: 'collection',
     },
   },
   FirstRun: false,
@@ -330,7 +337,6 @@ export const initialSettings: SettingsType = {
     DownloadCharacters: false,
     DownloadCreators: false,
     DownloadRelatedAnime: false,
-    DownloadReleaseGroups: false,
     MaxRelationDepth: 0,
     MyList_AddFiles: false,
     MyList_DeleteType: 0,
@@ -342,7 +348,6 @@ export const initialSettings: SettingsType = {
     Calendar_UpdateFrequency: 1,
     Anime_UpdateFrequency: 1,
     MyList_UpdateFrequency: 1,
-    MyListStats_UpdateFrequency: 1,
     File_UpdateFrequency: 1,
     Notification_UpdateFrequency: 1,
     Notification_HandleMovedFiles: false,
@@ -373,16 +378,14 @@ export const initialSettings: SettingsType = {
     SeriesTitleLanguageOrder: ['x-main'],
     SeriesTitleSourceOrder: [LanguageSource.AniDB, LanguageSource.TMDB],
     EpisodeTitleLanguageOrder: ['en'],
-    EpisodeTitleSourceOrder: [LanguageSource.TMDB, LanguageSource.TvDB, LanguageSource.AniDB],
+    EpisodeTitleSourceOrder: [LanguageSource.TMDB, LanguageSource.AniDB],
     DescriptionLanguageOrder: ['en'],
-    DescriptionSourceOrder: [LanguageSource.TMDB, LanguageSource.TvDB, LanguageSource.AniDB],
+    DescriptionSourceOrder: [LanguageSource.TMDB, LanguageSource.AniDB],
   },
   TraktTv: {
     Enabled: false,
     TokenExpirationDate: '',
-    UpdateFrequency: 1,
     SyncFrequency: 1,
-    PIN: '',
     AuthToken: '',
     RefreshToken: '',
   },
@@ -415,6 +418,7 @@ export const initialSettings: SettingsType = {
       EnabledRenamers: {},
       MoveOnImport: false,
       RenameOnImport: false,
+      AllowRelocationInsideDestinationOnImport: true,
       DefaultRenamer: null,
     },
   },
@@ -424,6 +428,13 @@ export const transformSettings = (response: SettingsServerType) => {
   let webuiSettings = JSON.parse(
     response.WebUI_Settings === '' ? '{}' : response.WebUI_Settings,
   ) as WebUISettingsType;
+
+  // Settings aren't fetched yet, transform is running on initialData
+  // Return without any operatations
+  if (webuiSettings.settingsRevision === 0) {
+    return { ...response, WebUI_Settings: webuiSettings };
+  }
+
   const currentSettingsRevision = webuiSettings.settingsRevision ?? 0;
   const versionedInitialSettings: WebUISettingsType = {
     ...initialSettings.WebUI_Settings,
@@ -441,7 +452,7 @@ export const transformSettings = (response: SettingsServerType) => {
         .forEach((key) => {
           webuiSettings = webuiSettingsPatches[key](webuiSettings);
         });
-      webuiSettings = Object.assign({}, initialSettings.WebUI_Settings, webuiSettings);
+      webuiSettings = merge({}, initialSettings.WebUI_Settings, webuiSettings);
     } catch {
       webuiSettings = versionedInitialSettings;
     }

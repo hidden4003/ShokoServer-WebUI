@@ -1,6 +1,6 @@
 import React from 'react';
 import AnimateHeight from 'react-animate-height';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router';
 import {
   mdiCheckboxBlankCircleOutline,
   mdiCheckboxMarkedCircleOutline,
@@ -11,7 +11,6 @@ import {
 } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import cx from 'classnames';
-import { get } from 'lodash';
 import { useToggle } from 'usehooks-ts';
 
 import BackgroundImagePlaceholderDiv from '@/components/BackgroundImagePlaceholderDiv';
@@ -19,7 +18,6 @@ import Button from '@/components/Input/Button';
 import { useHideEpisodeMutation, useWatchEpisodeMutation } from '@/core/react-query/episode/mutations';
 import { useEpisodeFilesQuery } from '@/core/react-query/episode/queries';
 import useEpisodeThumbnail from '@/hooks/useEpisodeThumbnail';
-import useEventCallback from '@/hooks/useEventCallback';
 
 import EpisodeDetails from './EpisodeDetails';
 import EpisodeFiles from './EpisodeFiles';
@@ -42,12 +40,19 @@ const StateIcon = ({ className, icon, show }: { icon: string, show: boolean, cla
 );
 
 const StateButton = React.memo((
-  { active, icon, onClick, tooltip }: { icon: string, active: boolean, onClick: () => void, tooltip: string },
+  { active, disabled, icon, onClick, tooltip }: {
+    icon: string;
+    active: boolean;
+    onClick: () => void;
+    tooltip: string;
+    disabled: boolean;
+  },
 ) => (
   <Button
     className={cx('self-center', active ? 'text-panel-text-important' : 'text-panel-text')}
     onClick={onClick}
     tooltip={tooltip}
+    disabled={disabled}
   >
     <Icon path={icon} size={1.2} />
   </Button>
@@ -60,7 +65,7 @@ const SelectedStateButton = React.memo((
     ? (
       <div
         className={cx(
-          'flex flex-col items-center gap-y-6 rounded-br-lg rounded-tl-lg p-4',
+          'flex flex-col items-center gap-y-6 rounded-tl-lg rounded-br-lg p-4',
           shadow && 'shadow-md',
         )}
       >
@@ -85,25 +90,27 @@ const EpisodeSummary = React.memo(
     const { backdrop } = useOutletContext<SeriesContextType>();
     const thumbnail = useEpisodeThumbnail(episode, backdrop);
     const [open, toggleOpen] = useToggle(false);
-    const episodeId = get(episode, 'IDs.ID', 0);
+    const episodeId = episode.IDs.ID ?? 0;
 
     const episodeFilesQuery = useEpisodeFilesQuery(
       episodeId,
-      { includeDataFrom: ['AniDB'], include: ['AbsolutePaths', 'MediaInfo'] },
+      { include: ['AbsolutePaths', 'ReleaseInfo', 'MediaInfo'] },
       open,
     );
-    const { mutate: markWatched } = useWatchEpisodeMutation(seriesId, page, nextUp);
-    const { mutate: markHidden } = useHideEpisodeMutation(seriesId, nextUp);
+    const { isPending: markWatchedPending, mutate: markWatched } = useWatchEpisodeMutation(seriesId, page, nextUp);
+    const { isPending: markHiddenPending, mutate: markHidden } = useHideEpisodeMutation(seriesId, nextUp);
 
-    const handleMarkWatched = useEventCallback(() => markWatched({ episodeId, watched: episode.Watched === null }));
-    const handleMarkHidden = useEventCallback(() => markHidden({ episodeId, hidden: !episode.IsHidden }));
+    const handleMarkWatched = () =>
+      markWatched({ episodeId, watched: markWatchedPending ? !episode.Watched : episode.Watched === null });
+    const handleMarkHidden = () =>
+      markHidden({ episodeId, hidden: markHiddenPending ? episode.IsHidden : !episode.IsHidden });
 
     return (
       <>
         <div className={cx('z-10 flex items-center gap-x-6', !nextUp && 'p-6')}>
           <BackgroundImagePlaceholderDiv
             image={thumbnail}
-            className="group flex h-[16.25rem] min-w-[28.75rem] rounded-lg border border-panel-border"
+            className="group flex h-65 min-w-115 rounded-lg border border-panel-border"
             zoomOnHover
           >
             <div className="absolute flex w-full flex-row justify-between rounded-lg transition-opacity group-hover:opacity-0">
@@ -114,7 +121,7 @@ const EpisodeSummary = React.memo(
               </div>
               <div className="flex w-14 flex-col">
                 {(!!episode.Watched || episode.IsHidden) && (
-                  <div className="flex flex-col items-center gap-y-6 rounded-bl-lg rounded-tr-lg bg-panel-background-overlay p-4 text-panel-text-important shadow-md">
+                  <div className="flex flex-col items-center gap-y-6 rounded-tr-lg rounded-bl-lg bg-panel-background-overlay p-4 text-panel-text-important shadow-md">
                     <StateIcon icon={mdiEyeCheckOutline} show={!!episode.Watched} />
                     <StateIcon icon={mdiEyeOffOutline} show={episode.IsHidden} />
                   </div>
@@ -137,6 +144,7 @@ const EpisodeSummary = React.memo(
                       active={!!episode.Watched}
                       onClick={handleMarkWatched}
                       tooltip={`Mark ${episode.Watched ? 'Unwatched' : 'Watched'}`}
+                      disabled={markWatchedPending}
                     />
                   )}
                   <StateButton
@@ -144,6 +152,7 @@ const EpisodeSummary = React.memo(
                     active={episode.IsHidden}
                     onClick={handleMarkHidden}
                     tooltip={`${episode.IsHidden ? 'Unhide' : 'Hide'} Episode`}
+                    disabled={markHiddenPending}
                   />
                 </div>
               </div>

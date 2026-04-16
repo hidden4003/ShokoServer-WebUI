@@ -1,25 +1,23 @@
-import React, { useMemo, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import useMeasure from 'react-use-measure';
 import {
+  mdiBeta,
   mdiCloseCircleOutline,
+  mdiCreation,
   mdiDatabaseSearchOutline,
   mdiDatabaseSyncOutline,
   mdiDumpTruck,
   mdiEyeOffOutline,
   mdiFileDocumentEditOutline,
-  mdiFileDocumentOutline,
+  mdiLinkVariantPlus,
   mdiLoading,
   mdiMagnify,
   mdiMinusCircleOutline,
-  mdiOpenInNew,
   mdiRefresh,
 } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import cx from 'classnames';
 import { countBy, every, find, some } from 'lodash';
-import { useDebounceValue } from 'usehooks-ts';
 
 import DeleteFilesModal from '@/components/Dialogs/DeleteFilesModal';
 import Button from '@/components/Input/Button';
@@ -43,34 +41,36 @@ import {
   useRescanFileMutation,
 } from '@/core/react-query/file/mutations';
 import { useFilesInfiniteQuery } from '@/core/react-query/file/queries';
-import { useImportFoldersQuery } from '@/core/react-query/import-folder/queries';
+import { useManagedFoldersQuery } from '@/core/react-query/managed-folder/queries';
 import { invalidateQueries } from '@/core/react-query/queryClient';
 import { addFiles } from '@/core/slices/utilities/renamer';
+import { useDispatch, useSelector } from '@/core/store';
 import { FileSortCriteriaEnum } from '@/core/types/api/file';
-import useEventCallback from '@/hooks/useEventCallback';
+import { processError } from '@/core/util';
+import getEd2kLink from '@/core/utilities/getEd2kLink';
 import useFlattenListResult from '@/hooks/useFlattenListResult';
+import useNavigateVoid from '@/hooks/useNavigateVoid';
 import useRowSelection from '@/hooks/useRowSelection';
+import useTableSearchSortCriteria from '@/hooks/utilities/useTableSearchSortCriteria';
 
 import type { UtilityHeaderType } from '@/components/Utilities/constants';
-import type { RootState } from '@/core/store';
 import type { FileType } from '@/core/types/api/file';
+import type { AxiosError } from 'axios';
 import type { Updater } from 'use-immer';
 
 const Menu = (
   props: {
     selectedRows: FileType[];
     setSelectedRows: Updater<Record<number, boolean>>;
-    setSeriesSelectModal(this: void, show: boolean): void;
   },
 ) => {
   const {
     selectedRows,
     setSelectedRows,
-    setSeriesSelectModal,
   } = props;
 
   const dispatch = useDispatch();
-  const navigate = useNavigate();
+  const navigate = useNavigateVoid();
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -79,23 +79,28 @@ const Menu = (
   const { mutateAsync: rehashFile } = useRehashFileMutation();
   const { mutateAsync: rescanFile } = useRescanFileMutation();
 
-  const showDeleteConfirmation = useEventCallback(() => {
+  // This is for invalidating queries for LinkFilesWithProvidersTab
+  useEffect(() => {
+    invalidateQueries(['release-info']);
+    invalidateQueries(['series', 'anidb']);
+    invalidateQueries(['episode', 'anidb']);
+  }, []);
+
+  const showDeleteConfirmation = useCallback(() => {
     setShowConfirmModal(true);
-  });
+  }, []);
 
-  const cancelDelete = useEventCallback(() => {
+  const cancelDelete = () => {
     setShowConfirmModal(false);
-  });
+  };
 
-  const removeFileFromSelection = useEventCallback(
-    (fileId: number) =>
-      setSelectedRows((immerState) => {
-        immerState[fileId] = false;
-        return immerState;
-      }),
-  );
+  const removeFileFromSelection = (fileId: number) =>
+    setSelectedRows((draftState) => {
+      draftState[fileId] = false;
+      return draftState;
+    });
 
-  const handleDelete = useEventCallback(() => {
+  const handleDelete = () => {
     deleteFiles(
       {
         fileIds: selectedRows.map(row => row.ID),
@@ -107,9 +112,9 @@ const Menu = (
       },
     );
     setSelectedRows([]);
-  });
+  };
 
-  const ignoreFiles = useEventCallback(() => {
+  const ignoreFiles = useCallback(() => {
     const promises = selectedRows.map(
       row => ignoreFile({ fileId: row.ID, ignore: true }),
     );
@@ -123,9 +128,9 @@ const Menu = (
         setSelectedRows([]);
       })
       .catch(console.error);
-  });
+  }, [ignoreFile, selectedRows, setSelectedRows]);
 
-  const rehashFiles = useEventCallback(() => {
+  const rehashFiles = useCallback(() => {
     const promises = selectedRows.map(row => rehashFile(row.ID));
 
     Promise
@@ -137,9 +142,9 @@ const Menu = (
         setSelectedRows([]);
       })
       .catch(console.error);
-  });
+  }, [rehashFile, selectedRows, setSelectedRows]);
 
-  const rescanFiles = useEventCallback(() => {
+  const rescanFiles = useCallback(() => {
     const promises = selectedRows.map(row => rescanFile(row.ID));
 
     Promise
@@ -151,12 +156,12 @@ const Menu = (
         setSelectedRows([]);
       })
       .catch(console.error);
-  });
+  }, [rescanFile, selectedRows, setSelectedRows]);
 
-  const handleRename = useEventCallback(() => {
+  const handleRename = useCallback(() => {
     dispatch(addFiles(selectedRows));
     navigate('/webui/utilities/renamer');
-  });
+  }, [dispatch, navigate, selectedRows]);
 
   const renderSelectedRowActions = useMemo(() => (
     <>
@@ -175,15 +180,19 @@ const Menu = (
       </div>
       <MenuButton onClick={rescanFiles} icon={mdiDatabaseSearchOutline} name="Rescan" />
       <MenuButton onClick={rehashFiles} icon={mdiDatabaseSyncOutline} name="Rehash" />
-      <MenuButton onClick={() => setSeriesSelectModal(true)} icon={mdiFileDocumentOutline} name="Add To AniDB" />
       <MenuButton onClick={handleRename} icon={mdiFileDocumentEditOutline} name="Rename" />
       <MenuButton onClick={ignoreFiles} icon={mdiEyeOffOutline} name="Ignore" />
-      <MenuButton onClick={showDeleteConfirmation} icon={mdiMinusCircleOutline} name="Delete" highlight />
+      <MenuButton
+        onClick={showDeleteConfirmation}
+        icon={mdiMinusCircleOutline}
+        name="Delete"
+        highlightType="danger"
+      />
       <MenuButton
         onClick={() => setSelectedRows([])}
         icon={mdiCloseCircleOutline}
         name="Cancel Selection"
-        highlight
+        highlightType="primary"
       />
     </>
   ), [
@@ -192,7 +201,6 @@ const Menu = (
     rehashFiles,
     rescanFiles,
     setSelectedRows,
-    setSeriesSelectModal,
     showDeleteConfirmation,
     selectedRows,
   ]);
@@ -202,7 +210,7 @@ const Menu = (
       <div
         className={cx(
           selectedRows.length !== 0 ? 'hidden 3xl:flex' : 'inline-flex',
-          'box-border h-[3.25rem] grow items-center rounded-lg border border-panel-border bg-panel-background-alt px-4 py-3 gap-x-4',
+          'box-border h-13 grow items-center gap-x-4 rounded-lg border border-panel-border bg-panel-background-alt px-4 py-3',
         )}
       >
         <MenuButton
@@ -222,7 +230,7 @@ const Menu = (
       </div>
 
       <div className={cx(selectedRows.length !== 0 ? 'flex' : 'hidden', '3xl:hidden')}>
-        <DropdownButton buttonTypes="secondary" content={<span>Options</span>}>
+        <DropdownButton buttonType="secondary" content={<span>Options</span>}>
           {renderSelectedRowActions}
         </DropdownButton>
       </div>
@@ -238,23 +246,35 @@ const Menu = (
   );
 };
 
-function UnrecognizedTab() {
-  const navigate = useNavigate();
+const UnrecognizedTab = () => {
+  const navigate = useNavigateVoid();
 
+  const {
+    debouncedSearch,
+    search,
+    setSearch,
+    setSortCriteria,
+    sortCriteria,
+  } = useTableSearchSortCriteria(FileSortCriteriaEnum.ManagedFolderName);
   const [seriesSelectModal, setSeriesSelectModal] = useState(false);
-  const [sortCriteria, setSortCriteria] = useState(FileSortCriteriaEnum.ImportFolderName);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch] = useDebounceValue(search, 200);
-  const { mutate: avdumpFiles } = useAvdumpFilesMutation();
 
-  const importFolderQuery = useImportFoldersQuery();
-  const importFolders = useMemo(() => importFolderQuery?.data ?? [], [importFolderQuery.data]);
+  const { mutateAsync: avdumpFiles } = useAvdumpFilesMutation();
+
+  const managedFolderQuery = useManagedFoldersQuery();
+  const managedFolders = useMemo(() => managedFolderQuery?.data ?? [], [managedFolderQuery.data]);
+
+  const sortOrder = useMemo(() => {
+    if (!sortCriteria) return undefined;
+    if (debouncedSearch) return [sortCriteria];
+    return [sortCriteria, FileSortCriteriaEnum.FileName, FileSortCriteriaEnum.RelativePath];
+  }, [debouncedSearch, sortCriteria]);
 
   const filesQuery = useFilesInfiniteQuery(
     {
       pageSize: 200,
+      include: ['AbsolutePaths'],
       include_only: ['Unrecognized'],
-      sortOrder: [sortCriteria, FileSortCriteriaEnum.FileName, FileSortCriteriaEnum.RelativePath],
+      sortOrder,
     },
     debouncedSearch,
   );
@@ -263,14 +283,26 @@ function UnrecognizedTab() {
   const columns = useMemo<UtilityHeaderType<FileType>[]>(
     () => [
       {
-        id: 'importFolder',
-        name: 'Import Folder',
-        className: 'w-40',
-        item: file =>
-          find(
-            importFolders,
-            { ID: file?.Locations[0]?.ImportFolderID ?? -1 },
-          )?.Name ?? '<Unknown>',
+        id: 'managedFolder',
+        name: 'Managed Folder',
+        className: 'w-46',
+        item: (file) => {
+          const managedFolder = find(
+            managedFolders,
+            { ID: file?.Locations[0]?.ManagedFolderID ?? -1 },
+          )?.Name ?? '<Unknown>';
+
+          return (
+            <div
+              className="truncate"
+              data-tooltip-id="tooltip"
+              data-tooltip-content={managedFolder}
+              data-tooltip-delay-show={500}
+            >
+              {managedFolder}
+            </div>
+          );
+        },
       },
       ...staticColumns,
       {
@@ -280,17 +312,17 @@ function UnrecognizedTab() {
         item: file => <AVDumpFileIcon file={file} />,
       },
     ],
-    [importFolders],
+    [managedFolders],
   );
 
-  const avdumpList = useSelector((state: RootState) => state.utilities.avdump);
+  const avdumpList = useSelector(state => state.utilities.avdump);
 
   const {
     handleRowSelect,
     rowSelection,
     selectedRows,
     setRowSelection,
-  } = useRowSelection<FileType>(files);
+  } = useRowSelection(files);
 
   const isAvdumpFinished = useMemo(
     () => (selectedRows.length > 0
@@ -303,8 +335,10 @@ function UnrecognizedTab() {
   );
   const dumpInProgress = some(avdumpList.sessions, session => session.status === 'Running');
 
-  const handleAvdumpClick = useEventCallback(() => {
-    setSeriesSelectModal(true);
+  const handleAvdumpClick = () => {
+    if (isAvdumpFinished && !dumpInProgress) {
+      setSeriesSelectModal(true);
+    }
 
     if (!isAvdumpFinished || dumpInProgress) {
       avdumpFiles({
@@ -315,19 +349,13 @@ function UnrecognizedTab() {
             return !AVDump?.LastDumpedAt && !AVDump.Status;
           })
           .map(file => file.ID),
-      });
+      })
+        .catch((error: AxiosError) => toast.error('AVDump failed!', processError(error)));
     }
-  });
+  };
 
-  const getED2KLinks = useEventCallback(() => ({
-    fileIds: selectedRows.map(file => file.ID),
-    links: selectedRows.map(
-      file =>
-        `ed2k://|file|${
-          file.Locations[0]?.RelativePath?.split(/[\\/]+/g).pop() ?? ''
-        }|${file.Size}|${file.Hashes.ED2K}|/`,
-    ).toSorted(),
-  }));
+  const fileIds = selectedRows.map(file => file.ID);
+  const links = selectedRows.map(file => getEd2kLink(file)).toSorted();
 
   const [tabContainerRef, bounds] = useMeasure();
   const isOverlay = bounds.width <= 1365 && bounds.width >= 1206 && selectedRows.length !== 0;
@@ -350,6 +378,7 @@ function UnrecognizedTab() {
 
   return (
     <>
+      <title>Unrecognized Files | Shoko</title>
       <div className="flex grow flex-col gap-y-6" ref={tabContainerRef}>
         <div>
           <ShokoPanel title={<Title />} options={<ItemCount count={fileCount} selected={selectedRows?.length} />}>
@@ -360,29 +389,45 @@ function UnrecognizedTab() {
                 startIcon={mdiMagnify}
                 id="search"
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={setSearch}
                 inputClassName={cx('px-4 py-3', searchClassName)}
                 overlayClassName="grow 2xl:w-auto 2xl:grow-0"
               />
               <Menu
                 selectedRows={selectedRows}
                 setSelectedRows={setRowSelection}
-                setSeriesSelectModal={setSeriesSelectModal}
               />
               <div className={cx('gap-x-3', selectedRows.length !== 0 ? 'flex' : 'hidden')}>
                 <Button
                   buttonType="primary"
                   buttonSize="normal"
-                  className="flex flex-row flex-wrap items-center gap-x-2"
+                  tooltip="Manual Link (Legacy)"
+                  className="flex flex-row flex-wrap items-center gap-x-2 rounded-r-none"
                   onClick={() => navigate('link', { state: { selectedRows } })}
                 >
-                  <Icon path={mdiOpenInNew} size={1} />
+                  <Icon path={mdiLinkVariantPlus} size={1} />
                   <span>Manual Link</span>
                 </Button>
                 <Button
                   buttonType="primary"
                   buttonSize="normal"
-                  className="flex h-13 flex-row flex-wrap items-center gap-x-2"
+                  tooltip="Link With Providers (β)"
+                  className="group -ml-3 flex flex-row flex-wrap items-center gap-x-2 rounded-l-none border-l-0"
+                  onClick={() => navigate('link-with-providers', { state: { selectedRows } })}
+                >
+                  <div className="relative">
+                    <Icon path={mdiCreation} size={1} />
+                    <Icon
+                      path={mdiBeta}
+                      size={0.5}
+                      className="absolute -right-1.5 -bottom-1 stroke-button-primary stroke-[8px] transition-[stroke] ease-in-out [paint-order:stroke] group-hover:stroke-button-primary-hover"
+                    />
+                  </div>
+                </Button>
+                <Button
+                  buttonType="primary"
+                  buttonSize="normal"
+                  className="flex min-h-13 flex-row flex-wrap items-center gap-x-2"
                   onClick={handleAvdumpClick}
                   disabled={dumpInProgress}
                 >
@@ -412,13 +457,13 @@ function UnrecognizedTab() {
           {filesQuery.isSuccess && fileCount > 0 && (
             <UtilitiesTable
               count={fileCount}
-              fetchNextPage={() => filesQuery.fetchNextPage()}
+              fetchNextPage={filesQuery.fetchNextPage}
               handleRowSelect={handleRowSelect}
               columns={columns}
               isFetchingNextPage={filesQuery.isFetchingNextPage}
               rows={files}
               rowSelection={rowSelection}
-              setSelectedRows={setRowSelection}
+              setRowSelection={setRowSelection}
               setSortCriteria={setSortCriteria}
               sortCriteria={sortCriteria}
             />
@@ -432,10 +477,11 @@ function UnrecognizedTab() {
           if (refresh) setRowSelection({});
           setSeriesSelectModal(false);
         }}
-        getLinks={getED2KLinks}
+        fileIds={fileIds}
+        links={links}
       />
     </>
   );
-}
+};
 
 export default UnrecognizedTab;

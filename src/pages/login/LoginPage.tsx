@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { Slide, ToastContainer } from 'react-toastify';
 import {
   mdiAlertCircleOutline,
@@ -12,8 +11,6 @@ import {
 } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import cx from 'classnames';
-import 'react-toastify/dist/ReactToastify.min.css';
-import semver from 'semver';
 import { siDiscord } from 'simple-icons';
 
 import Button from '@/components/Input/Button';
@@ -23,16 +20,15 @@ import ShokoIcon from '@/components/ShokoIcon';
 import { useLoginMutation } from '@/core/react-query/auth/mutations';
 import { useRandomImageMetadataQuery } from '@/core/react-query/image/queries';
 import { useServerStatusQuery, useVersionQuery } from '@/core/react-query/init/queries';
+import { useSelector } from '@/core/store';
 import { ImageTypeEnum } from '@/core/types/api/common';
-import { getParsedSupportedServerVersion, parseServerVersion } from '@/core/util';
+import useNavigateVoid from '@/hooks/useNavigateVoid';
 
-import type { RootState } from '@/core/store';
-
-function LoginPage() {
-  const navigate = useNavigate();
+const LoginPage = () => {
+  const navigate = useNavigateVoid();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const apiSession = useSelector((state: RootState) => state.apiSession);
+  const apiSession = useSelector(state => state.apiSession);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -71,9 +67,9 @@ function LoginPage() {
 
   useEffect(() => {
     if (!serverStatusQuery.data) setPollingInterval(500);
-    else if (serverStatusQuery.data?.State !== 1) setPollingInterval(0);
+    else if (serverStatusQuery.data?.State !== 'Starting') setPollingInterval(0);
 
-    if (serverStatusQuery.data?.State === 2 && apiSession.apikey !== '') {
+    if (serverStatusQuery.data?.State === 'Started' && apiSession.apikey !== '') {
       navigate(searchParams.get('redirectTo') ?? '/webui', { replace: true });
     }
   }, [serverStatusQuery.data, apiSession, navigate, searchParams]);
@@ -105,45 +101,26 @@ function LoginPage() {
     }
 
     if (versionQuery.data.Server.ReleaseChannel !== 'Stable') {
-      return `${versionQuery.data.Server.Version}-${versionQuery.data.Server.ReleaseChannel} (${
-        versionQuery.data.Server.Commit?.slice(0, 7)
-      })`;
+      return `${versionQuery.data.Server.Version} (${versionQuery.data.Server.Commit?.slice(0, 7)})`;
     }
 
     return versionQuery.data.Server.Version;
   }, [versionQuery.data, versionQuery.isFetching]);
 
-  useEffect(() => {
-    if (!versionQuery.data || versionQuery.data.Server.ReleaseChannel === 'Debug') return;
-
-    const serverData = versionQuery.data.Server;
-
-    let isServerSupported = true;
-
-    if (!serverData.ReleaseDate && serverData.ReleaseChannel === 'Stable') isServerSupported = false;
-
-    const semverVersion = parseServerVersion(serverData.Version);
-    const mininumVersion = getParsedSupportedServerVersion();
-    if (semverVersion && semver.lt(semverVersion, mininumVersion)) isServerSupported = false;
-
-    if (!isServerSupported) {
-      navigate('/webui/unsupported');
-    }
-  }, [navigate, versionQuery.data]);
-
   return (
     <>
+      <title>Login | Shoko</title>
       <ToastContainer
         position="bottom-right"
         autoClose={4000}
         transition={Slide}
-        className="mt-20 !w-[29.5rem]"
+        className="mt-20 w-118!"
         closeButton={false}
         icon={false}
       />
       <div className="relative flex h-screen w-screen flex-col items-center justify-center gap-y-2">
         {loginError && (
-          <div className="flex w-full max-w-[51.625rem] justify-center gap-x-2 rounded-lg border border-panel-border bg-panel-background-transparent p-4 drop-shadow-md">
+          <div className="flex w-full max-w-200 justify-center gap-x-2 rounded-lg border border-panel-border bg-panel-background-transparent p-4 drop-shadow-md">
             <Icon className="text-panel-text-danger" path={mdiAlertCircleOutline} size={1} />
             <div className="font-semibold text-panel-text-danger">
               Invalid Username or Password. Try again.
@@ -151,9 +128,9 @@ function LoginPage() {
           </div>
         )}
         <div className="flex flex-col items-center rounded-lg border border-panel-border bg-panel-background-transparent drop-shadow-md">
-          <div className="flex w-[50rem] flex-row items-center gap-x-6 p-6">
+          <div className="flex w-200 flex-row items-center gap-x-6 p-6">
             <div className="flex w-80 flex-col items-center gap-y-6 py-6">
-              <ShokoIcon className="w-[9.375rem]" />
+              <ShokoIcon className="size-32" />
               <div className="flex flex-col gap-y-1 text-center font-semibold">
                 <span>Version</span>
                 <span>{parsedVersion}</span>
@@ -165,7 +142,7 @@ function LoginPage() {
                   <Icon path={mdiLoading} spin className="text-panel-text-primary" size={4} />
                 </div>
               )}
-              {serverStatusQuery.data?.State === 1 && (
+              {serverStatusQuery.data?.State === 'Starting' && (
                 <div className="flex flex-col items-center justify-center gap-y-2">
                   <Icon path={mdiLoading} spin className="text-panel-text-primary" size={4} />
                   <div className="mt-2 text-xl font-semibold">Server is starting. Please wait!</div>
@@ -175,7 +152,7 @@ function LoginPage() {
                   </div>
                 </div>
               )}
-              {serverStatusQuery.data?.State === 2 && (
+              {serverStatusQuery.data?.State === 'Started' && (
                 <form onSubmit={handleSignIn} className="flex flex-col gap-y-6">
                   <Input
                     autoFocus
@@ -184,7 +161,8 @@ function LoginPage() {
                     label="Username"
                     type="text"
                     placeholder="Username"
-                    onChange={e => setUsername(e.target.value)}
+                    onChange={event =>
+                      setUsername(event.target.value)}
                   />
                   <Input
                     id="password"
@@ -192,13 +170,14 @@ function LoginPage() {
                     label="Password"
                     type="password"
                     placeholder="Password"
-                    onChange={e => setPassword(e.target.value)}
+                    onChange={event =>
+                      setPassword(event.target.value)}
                   />
                   <Checkbox
                     id="rememberUser"
                     label="Remember Me"
                     isChecked={rememberUser}
-                    onChange={e => setRememberUser(e.target.checked)}
+                    onChange={event => setRememberUser(event.target.checked)}
                     className="font-semibold"
                     labelRight
                   />
@@ -214,17 +193,17 @@ function LoginPage() {
                   </Button>
                 </form>
               )}
-              {serverStatusQuery.data?.State === 3 && (
+              {serverStatusQuery.data?.State === 'Failed' && (
                 <div className="flex max-h-80 flex-col items-center justify-center gap-y-2 pb-2">
                   <Icon path={mdiCloseCircleOutline} className="shrink-0 text-panel-text-warning" size={4} />
                   <div className="mt-2 text-xl font-semibold">Server startup failed!</div>
                   Check the error message below
-                  <div className="overflow-y-auto break-all text-lg font-semibold">
+                  <div className="overflow-y-auto text-lg font-semibold break-all">
                     {serverStatusQuery.data?.StartupMessage ?? 'Unknown'}
                   </div>
                 </div>
               )}
-              {serverStatusQuery.data?.State === 4 && (
+              {serverStatusQuery.data?.State === 'Waiting' && (
                 <div className="flex flex-col gap-y-6">
                   <div className="flex flex-col gap-y-4">
                     <div>Welcome, and thank you for installing Shoko!</div>
@@ -255,7 +234,7 @@ function LoginPage() {
             <div className="flex gap-x-2">
               <div
                 className={cx(
-                  'flex gap-x-2 items-center font-semibold max-w-[23rem]',
+                  'flex max-w-92 items-center gap-x-2 font-semibold',
                   seriesId && 'cursor-pointer text-panel-text-primary',
                 )}
                 onClick={setRedirect}
@@ -278,7 +257,7 @@ function LoginPage() {
                 href="https://discord.gg/vpeHDsg"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-x-2"
+                className="flex items-center gap-x-2 transition-colors hover:text-header-icon-primary"
               >
                 <Icon path={siDiscord.path} size={1} />
                 Discord
@@ -287,7 +266,7 @@ function LoginPage() {
                 href="https://docs.shokoanime.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-x-2"
+                className="flex items-center gap-x-2 transition-colors hover:text-header-icon-primary"
               >
                 <Icon path={mdiHelpCircleOutline} size={1} />
                 Docs
@@ -296,7 +275,7 @@ function LoginPage() {
                 href="https://github.com/ShokoAnime"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-x-2"
+                className="flex items-center gap-x-2 transition-colors hover:text-header-icon-primary"
               >
                 <Icon path={mdiGithub} size={1} />
                 GitHub
@@ -306,7 +285,7 @@ function LoginPage() {
         </div>
         <div
           className={cx(
-            'fixed left-0 top-0 -z-10 h-full w-full opacity-20',
+            'fixed top-0 left-0 -z-10 size-full opacity-20',
             imageUrl === 'default' && 'login-image-default',
           )}
           style={imageUrl !== '' && imageUrl !== 'default'
@@ -316,6 +295,6 @@ function LoginPage() {
       </div>
     </>
   );
-}
+};
 
 export default LoginPage;

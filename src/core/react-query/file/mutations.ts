@@ -6,6 +6,8 @@ import { axios } from '@/core/axios';
 import queryClient, { invalidateQueries } from '@/core/react-query/queryClient';
 
 import type {
+  DeleteFileLocationRequestType,
+  DeleteFileLocationsRequestType,
   DeleteFileRequestType,
   DeleteFilesRequestType,
   IgnoreFileRequestType,
@@ -28,7 +30,7 @@ export const useDeleteFilesMutation = () =>
 
 export const useDeleteFileMutation = (seriesId?: number, episodeId?: number) =>
   useMutation({
-    mutationFn: ({ fileId, removeFolder }: DeleteFileRequestType) =>
+    mutationFn: ({ fileId, removeFolder = true }: DeleteFileRequestType) =>
       axios.delete(`File/${fileId}`, { data: { removeFolder } }),
     onSuccess: () => {
       if (!seriesId || !episodeId) return;
@@ -66,6 +68,16 @@ export const useDeleteFileLinkMutation = () =>
           data: null,
         },
       ),
+  });
+
+export const useDeleteFileLocationsMutation = () =>
+  useMutation({
+    mutationFn: (data: DeleteFileLocationsRequestType) => axios.delete('File/Location', { data }),
+  });
+
+export const useDeleteFileLocationMutation = () =>
+  useMutation({
+    mutationFn: ({ locationId }: DeleteFileLocationRequestType) => axios.delete(`File/Location/${locationId}`),
   });
 
 export const useIgnoreFileMutation = () =>

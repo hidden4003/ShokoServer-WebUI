@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { mdiMinusCircleOutline } from '@mdi/js';
 import { Icon } from '@mdi/react';
 
 import Select from '@/components/Input/Select';
 import { addFilterCondition, removeFilterCriteria } from '@/core/slices/collection';
+import { useDispatch, useSelector } from '@/core/store';
 
 import type { RootState } from '@/core/store';
 import type { FilterExpression } from '@/core/types/api/filter';
@@ -13,8 +13,8 @@ type Props = {
   criteria: FilterExpression;
 };
 
-const Options = (props: { onClick: () => void }) => (
-  <div onClick={props.onClick}>
+const Options = ({ onClick }: { onClick: () => void }) => (
+  <div onClick={onClick}>
     <Icon className="cursor-pointer text-panel-icon-danger" path={mdiMinusCircleOutline} size={1} />
   </div>
 );
@@ -24,7 +24,7 @@ const DefaultCriteria = ({ criteria }: Props) => {
   const selectedCondition = useSelector(
     (state: RootState) => {
       const value: boolean | undefined = state.collection.filterConditions[criteria.Expression];
-      if (value === true || value === false) {
+      if (value !== undefined) {
         return value ? '1' : '0';
       }
       return value;

@@ -1,16 +1,16 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import Action from '@/components/Collection/Series/EditSeriesTabs/Action';
 import toast from '@/components/Toast';
 import { useDeleteSeriesMutation } from '@/core/react-query/series/mutations';
+import useNavigateVoid from '@/hooks/useNavigateVoid';
 
 type Props = {
   seriesId: number;
 };
 
 const DeleteActionsTab = ({ seriesId }: Props) => {
-  const navigate = useNavigate();
+  const navigate = useNavigateVoid();
 
   const { mutate: deleteSeries } = useDeleteSeriesMutation();
 
@@ -20,7 +20,7 @@ const DeleteActionsTab = ({ seriesId }: Props) => {
     <div className="flex grow flex-col gap-y-4 overflow-y-auto">
       <Action
         name="Delete Series - Keep Files"
-        description="Deletes the series from Shoko but does not delete the files"
+        description="Deletes the series from Shoko but does not delete the files. Cached AniDB data is preserved."
         onClick={() =>
           deleteSeries({ seriesId, deleteFiles: false }, {
             onSuccess: () => {
@@ -41,8 +41,8 @@ const DeleteActionsTab = ({ seriesId }: Props) => {
           })}
       />
       <Action
-        name="Delete Series - Complete"
-        description="Removes all records relating to the series. Use with caution, as you may get banned if it's abused"
+        name="Delete Series - All Series Data and Files"
+        description="Removes ALL DATA AND FILES relating to the series. Use with caution, as you may get temp banned from AniDB if it's abused"
         onClick={() =>
           deleteSeries({ seriesId, deleteFiles: true, completelyRemove: true }, {
             onSuccess: () => {

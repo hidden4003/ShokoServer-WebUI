@@ -1,8 +1,7 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { mdiInformationOutline, mdiLoading, mdiMagnify, mdiOpenInNew } from '@mdi/js';
 import { Icon } from '@mdi/react';
-import { countBy, forEach, some, toNumber } from 'lodash';
+import { countBy, some, toNumber } from 'lodash';
 import { useDebounceValue } from 'usehooks-ts';
 
 import Button from '@/components/Input/Button';
@@ -11,16 +10,15 @@ import ModalPanel from '@/components/Panels/ModalPanel';
 import toast from '@/components/Toast';
 import { useRescanFileMutation } from '@/core/react-query/file/mutations';
 import { useSeriesAniDBSearchQuery } from '@/core/react-query/series/queries';
+import { useSelector } from '@/core/store';
 import { copyToClipboard } from '@/core/util';
 import { detectShow, findMostCommonShowName } from '@/core/utilities/auto-match-logic';
-import useEventCallback from '@/hooks/useEventCallback';
-
-import type { RootState } from '@/core/store';
 
 type Props = {
   show: boolean;
   onClose: (refresh?: boolean) => void;
-  getLinks: () => { fileIds: number[], links: string[] };
+  fileIds: number[];
+  links: string[];
 };
 
 const Title = ({ count, step, stepCount }: { count: number, step: number, stepCount: number }) => (
@@ -46,7 +44,7 @@ const Title = ({ count, step, stepCount }: { count: number, step: number, stepCo
 );
 
 const StepDescription = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex justify-start gap-x-2 ">
+  <div className="flex justify-start gap-x-2">
     <Icon className="shrink-0" path={mdiInformationOutline} size={1} />
     <div className="flex">
       {children}
@@ -54,7 +52,7 @@ const StepDescription = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-function AvDumpSeriesSelectModal({ getLinks, onClose, show }: Props) {
+const AvDumpSeriesSelectModal = ({ fileIds, links, onClose, show }: Props) => {
   const { mutateAsync: rescanFile } = useRescanFileMutation();
   const [clickedLink, setClickedLink] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -62,28 +60,16 @@ function AvDumpSeriesSelectModal({ getLinks, onClose, show }: Props) {
   const [copyFailed, setCopyFailed] = useState(false);
 
   const [debouncedSearch] = useDebounceValue(searchText, 200);
-  const searchQuery = useSeriesAniDBSearchQuery(debouncedSearch, !!debouncedSearch);
+  const searchQuery = useSeriesAniDBSearchQuery(debouncedSearch, show && !!debouncedSearch);
 
-  const avdumpList = useSelector((state: RootState) => state.utilities.avdump);
+  const avdumpList = useSelector(state => state.utilities.avdump);
   const dumpInProgress = some(avdumpList.sessions, session => session.status === 'Running');
-
-  const { ed2kLinks, fileIds, links } = useMemo(() => {
-    if (!show) return { ed2kLinks: '', links: [], fileIds: [] };
-    const { fileIds: tempFileIds, links: tempLinks } = getLinks();
-    let tempEd2kLinks = '';
-    forEach(tempLinks, (link) => {
-      tempEd2kLinks += `${link}\n`;
-    });
-    return { ed2kLinks: tempEd2kLinks, links: tempLinks, fileIds: tempFileIds };
-  }, [getLinks, show]);
-  const commonSeries = useMemo(
-    () => findMostCommonShowName(links.map(link => detectShow(link.split('|')[2]))),
-    [links],
-  );
+  const ed2kLinks = links.join('\n');
+  const commonSeries = findMostCommonShowName(links.map(link => detectShow(link.split('|')[2])));
 
   useEffect(() => {
     setSearchText(commonSeries);
-  }, [commonSeries]);
+  }, [commonSeries, show]);
 
   const handleNextStep = () => {
     setActiveStep(activeStep + 1);
@@ -96,14 +82,14 @@ function AvDumpSeriesSelectModal({ getLinks, onClose, show }: Props) {
 
   const handleCopy = () => {
     copyToClipboard(ed2kLinks, 'ED2K hashes')
-      .then(() => setActiveStep(s => s + 1))
+      .then(() => setActiveStep(step => step + 1))
       .catch((error) => {
         console.error(error);
         setCopyFailed(true);
       });
   };
 
-  const rescanFiles = useEventCallback(() => {
+  const rescanFiles = () => {
     onClose(true);
 
     const promises = fileIds.map(fileId => rescanFile(toNumber(fileId)));
@@ -116,7 +102,7 @@ function AvDumpSeriesSelectModal({ getLinks, onClose, show }: Props) {
         if (failedCount !== fileIds.length) toast.success(`Rescanning ${fileIds.length} files!`);
       })
       .catch(console.error);
-  });
+  };
 
   useLayoutEffect(() => () => {
     if (show) return;
@@ -130,7 +116,7 @@ function AvDumpSeriesSelectModal({ getLinks, onClose, show }: Props) {
     <ModalPanel
       show={show}
       onRequestClose={onClose}
-      header={<Title step={1} stepCount={2} count={fileIds.length} />}
+      header={<Title step={activeStep} stepCount={2} count={fileIds.length} />}
       size="sm"
       noPadding
     >
@@ -143,11 +129,11 @@ function AvDumpSeriesSelectModal({ getLinks, onClose, show }: Props) {
                   'Manually copy the ED2K hashes from the box below, then proceed to the next step.'
                 )
                 : (
-                  'Click the blue button below to copy the ED2K hashes for use in the next step.'
+                  'Click the rightmost button below to copy the ED2K hashes for use in the next step.'
                 )}
             </StepDescription>
             <div className="flex grow rounded-lg border border-panel-border bg-panel-input p-4">
-              <div className="shoko-scrollbar flex h-[14.5rem] flex-col gap-y-1 overflow-y-auto break-all rounded-lg bg-panel-input pr-4">
+              <div className="flex h-58 flex-col gap-y-1 overflow-y-auto rounded-lg bg-panel-input pr-4 break-all">
                 {links.length
                   ? links.map(link => <div key={`link-${link.split('|')[4]}`}>{link}</div>)
                   : <div>No files selected.</div>}
@@ -195,11 +181,11 @@ function AvDumpSeriesSelectModal({ getLinks, onClose, show }: Props) {
                 value={searchText}
                 type="text"
                 placeholder="Search..."
-                onChange={e => setSearchText(e.target.value)}
+                onChange={event => setSearchText(event.target.value)}
                 startIcon={mdiMagnify}
               />
               <div className="w-full rounded-lg border border-panel-border bg-panel-input p-4 capitalize">
-                <div className="shoko-scrollbar flex h-[9.5rem] flex-col gap-y-1 overflow-x-clip overflow-y-scroll rounded-lg bg-panel-input pr-2 ">
+                <div className="flex h-38 flex-col gap-y-1 overflow-x-clip overflow-y-scroll rounded-lg bg-panel-input pr-2">
                   {searchQuery.isError || searchQuery.isFetching
                     ? (
                       <div className="flex h-full items-center justify-center">
@@ -207,19 +193,30 @@ function AvDumpSeriesSelectModal({ getLinks, onClose, show }: Props) {
                       </div>
                     )
                     : (searchQuery.data ?? []).map(result => (
-                      <a
-                        href={`https://anidb.net/anime/${result.ID}/release/add`}
-                        key={result.ID}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-between"
-                        onClick={() => setClickedLink(true)}
-                      >
-                        <div className="line-clamp-1">{result.Title}</div>
-                        <div className="text-panel-text-primary">
+                      <div key={result.ID} className="flex justify-between">
+                        <a
+                          href={`https://anidb.net/anime/${result.ID}/release/add`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setClickedLink(true)}
+                          data-tooltip-id="tooltip"
+                          className="transition-colors hover:text-panel-text-primary"
+                          data-tooltip-content="Mass Add"
+                        >
+                          <div className="line-clamp-1">{result.Title}</div>
+                        </a>
+                        <a
+                          href={`https://anidb.net/anime/${result.ID}`}
+                          aria-label="Check Series"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="items-center text-panel-text-primary"
+                          data-tooltip-id="tooltip"
+                          data-tooltip-content="Check Series"
+                        >
                           <Icon path={mdiOpenInNew} size={0.833} />
-                        </div>
-                      </a>
+                        </a>
+                      </div>
                     ))}
                 </div>
               </div>
@@ -246,6 +243,6 @@ function AvDumpSeriesSelectModal({ getLinks, onClose, show }: Props) {
       </div>
     </ModalPanel>
   );
-}
+};
 
 export default AvDumpSeriesSelectModal;

@@ -10,12 +10,10 @@ type FilteredEpisodesTabProps = {
   markFilteredUnwatched: () => void;
 };
 
-type Props =
-  & {
-    show: boolean;
-    onRequestClose: () => void;
-  }
-  & FilteredEpisodesTabProps;
+type Props = {
+  show: boolean;
+  onRequestClose: () => void;
+} & FilteredEpisodesTabProps;
 
 const tabs = {
   filtered_episodes: 'Filtered Episodes',
@@ -63,20 +61,20 @@ const EpisodeWatchModal = (
     <ModalPanel
       show={show}
       onRequestClose={onRequestClose}
-      header="Watch options"
+      header="Watch Options"
       size="md"
       noPadding
       noGap
     >
-      <div className="flex h-[22rem] flex-row gap-x-6 p-6">
+      <div className="flex flex-row gap-x-6 p-6">
         <div className="flex shrink-0 gap-y-6 font-semibold">
           <div className="flex flex-col gap-y-1">
             {map(tabs, (value, key) => (
               <div
                 className={cx(
                   activeTab === key
-                    ? 'w-[12rem] text-center bg-panel-menu-item-background p-3 rounded-lg text-panel-menu-item-text cursor-pointer'
-                    : 'w-[12rem] text-center p-3 rounded-lg hover:bg-panel-menu-item-background-hover cursor-pointer',
+                    ? 'w-48 cursor-pointer rounded-lg bg-panel-menu-item-background p-3 text-center text-panel-menu-item-text'
+                    : 'w-48 cursor-pointer rounded-lg p-3 text-center hover:bg-panel-menu-item-background-hover',
                 )}
                 key={key}
                 onClick={() => setActiveTab(key)}
@@ -88,7 +86,7 @@ const EpisodeWatchModal = (
         </div>
         <div className="border-r border-panel-border" />
         <div className="grow">
-          <div className="flex h-[22rem] grow flex-col gap-y-4 overflow-y-auto">
+          <div className="flex h-88 grow flex-col gap-y-4 overflow-y-auto">
             {renderTab(activeTab, markFilteredWatched, markFilteredUnwatched)}
           </div>
         </div>

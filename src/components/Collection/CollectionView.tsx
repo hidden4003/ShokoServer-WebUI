@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router';
 import useMeasure from 'react-use-measure';
 import { mdiLoading } from '@mdi/js';
 import { Icon } from '@mdi/react';
@@ -72,7 +72,7 @@ const CollectionView = (props: Props) => {
     () =>
       debounce(() => {
         fetchNextPage().catch(() => {});
-      }, 50),
+      }, 100),
     [fetchNextPage],
   );
 
@@ -80,8 +80,8 @@ const CollectionView = (props: Props) => {
     return (
       <div
         className={cx(
-          'flex grow rounded-lg items-center font-semibold justify-center max-h-screen',
-          mode === 'poster' && 'px-6 py-6 bg-panel-background border-panel-border border',
+          'flex max-h-screen grow items-center justify-center rounded-lg font-semibold',
+          mode === 'poster' && 'border border-panel-border bg-panel-background p-6',
         )}
       >
         <div className="flex w-full justify-center" ref={gridContainerRef}>
@@ -97,7 +97,7 @@ const CollectionView = (props: Props) => {
     <div
       className={cx(
         'flex grow rounded-lg',
-        mode === 'poster' && 'px-6 py-6 bg-panel-background border-panel-border border',
+        mode === 'poster' && 'border border-panel-border bg-panel-background p-6',
       )}
     >
       <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }} ref={gridContainerRef}>
@@ -113,18 +113,18 @@ const CollectionView = (props: Props) => {
           // same eg. as above, this will 16
           const toIndex = fromIndex + itemsPerRow;
 
-          // Here, i will be the actual index of the group in group list
-          for (let i = fromIndex; i < toIndex; i += 1) {
-            const item = items[i];
+          // Here, index will be the actual index of the group in group list
+          for (let index = fromIndex; index < toIndex; index += 1) {
+            const item = items[index];
 
             // Placeholder to solve formatting issues.
             // Used to fill the empty "slots" in the last row
-            const isPlaceholder = i > total - 1;
+            const isPlaceholder = index > total - 1;
 
             if (isPlaceholder) {
               children.push(
                 <div
-                  key={`placeholder-${i}`}
+                  key={`placeholder-${index}`}
                   style={{
                     width: `${itemWidth / 16}rem`,
                   }}
@@ -135,7 +135,7 @@ const CollectionView = (props: Props) => {
               children.push(
                 <div
                   className="flex shrink-0 items-center justify-center rounded-lg border border-panel-border text-panel-text-primary"
-                  key={`loading-${i}`}
+                  key={`loading-${index}`}
                   style={{
                     width: `${itemWidth / 16}rem`,
                     height: `${itemHeight / 16}rem`,
@@ -170,7 +170,7 @@ const CollectionView = (props: Props) => {
           return (
             <div
               className={cx(
-                'absolute top-0 left-0 w-full flex items-center justify-center last:pb-0',
+                'absolute top-0 left-0 flex w-full items-center justify-center last:pb-0',
                 mode === 'poster'
                   ? 'gap-x-6 pb-4'
                   : 'gap-x-6 pb-8',

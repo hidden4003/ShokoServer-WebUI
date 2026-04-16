@@ -1,8 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { mdiCloseCircleOutline, mdiEyeOutline, mdiLoading, mdiMagnify, mdiRefresh } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import { countBy, find } from 'lodash';
-import { useDebounceValue } from 'usehooks-ts';
 
 import Input from '@/components/Input/Input';
 import ShokoPanel from '@/components/Panels/ShokoPanel';
@@ -15,12 +14,12 @@ import UtilitiesTable from '@/components/Utilities/UtilitiesTable';
 import { staticColumns } from '@/components/Utilities/constants';
 import { useIgnoreFileMutation } from '@/core/react-query/file/mutations';
 import { useFilesInfiniteQuery } from '@/core/react-query/file/queries';
-import { useImportFoldersQuery } from '@/core/react-query/import-folder/queries';
+import { useManagedFoldersQuery } from '@/core/react-query/managed-folder/queries';
 import { invalidateQueries } from '@/core/react-query/queryClient';
 import { FileSortCriteriaEnum, type FileType } from '@/core/types/api/file';
-import useEventCallback from '@/hooks/useEventCallback';
 import useFlattenListResult from '@/hooks/useFlattenListResult';
 import useRowSelection from '@/hooks/useRowSelection';
+import useTableSearchSortCriteria from '@/hooks/utilities/useTableSearchSortCriteria';
 
 import type { UtilityHeaderType } from '@/components/Utilities/constants';
 import type { Updater } from 'use-immer';
@@ -38,7 +37,7 @@ const Menu = (
 
   const { mutateAsync: ignoreFile } = useIgnoreFileMutation();
 
-  const restoreFiles = useEventCallback(() => {
+  const restoreFiles = () => {
     const promises = selectedRows.map(
       row => ignoreFile({ fileId: row.ID, ignore: false }),
     );
@@ -52,10 +51,10 @@ const Menu = (
         setSelectedRows([]);
       })
       .catch(console.error);
-  });
+  };
 
   return (
-    <div className="relative box-border flex h-13 grow items-center rounded-lg border border-panel-border bg-panel-background-alt px-4 py-3 ">
+    <div className="relative box-border flex h-13 grow items-center rounded-lg border border-panel-border bg-panel-background-alt px-4 py-3">
       <TransitionDiv className="absolute flex grow gap-x-4" show={selectedRows.length === 0}>
         <MenuButton
           onClick={() => {
@@ -67,31 +66,46 @@ const Menu = (
         />
       </TransitionDiv>
       <TransitionDiv className="absolute flex grow gap-x-4" show={selectedRows.length !== 0}>
-        <MenuButton onClick={restoreFiles} icon={mdiEyeOutline} name="Restore" highlight />
+        <MenuButton
+          onClick={restoreFiles}
+          icon={mdiEyeOutline}
+          name="Restore"
+          highlightType="danger"
+        />
         <MenuButton
           onClick={() => setSelectedRows([])}
           icon={mdiCloseCircleOutline}
           name="Cancel Selection"
-          highlight
+          highlightType="primary"
         />
       </TransitionDiv>
     </div>
   );
 };
 
-function IgnoredFilesTab() {
-  const [sortCriteria, setSortCriteria] = useState(FileSortCriteriaEnum.ImportFolderName);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch] = useDebounceValue(search, 200);
+const IgnoredFilesTab = () => {
+  const {
+    debouncedSearch,
+    search,
+    setSearch,
+    setSortCriteria,
+    sortCriteria,
+  } = useTableSearchSortCriteria(FileSortCriteriaEnum.ManagedFolderName);
 
-  const importFolderQuery = useImportFoldersQuery();
-  const importFolders = useMemo(() => importFolderQuery?.data ?? [], [importFolderQuery.data]);
+  const managedFolderQuery = useManagedFoldersQuery();
+  const managedFolders = useMemo(() => managedFolderQuery?.data ?? [], [managedFolderQuery.data]);
+
+  const sortOrder = useMemo(() => {
+    if (!sortCriteria) return undefined;
+    if (debouncedSearch) return [sortCriteria];
+    return [sortCriteria, FileSortCriteriaEnum.FileName, FileSortCriteriaEnum.RelativePath];
+  }, [debouncedSearch, sortCriteria]);
 
   const filesQuery = useFilesInfiniteQuery(
     {
       pageSize: 50,
       include_only: ['Ignored'],
-      sortOrder: [sortCriteria, FileSortCriteriaEnum.FileName, FileSortCriteriaEnum.RelativePath],
+      sortOrder,
     },
     debouncedSearch,
   );
@@ -100,18 +114,18 @@ function IgnoredFilesTab() {
   const columns = useMemo<UtilityHeaderType<FileType>[]>(
     () => [
       {
-        id: 'importFolder',
-        name: 'Import Folder',
-        className: 'w-40',
+        id: 'managedFolder',
+        name: 'Managed Folder',
+        className: 'w-46',
         item: file =>
           find(
-            importFolders,
-            { ID: file?.Locations[0]?.ImportFolderID ?? -1 },
+            managedFolders,
+            { ID: file?.Locations[0]?.ManagedFolderID ?? -1 },
           )?.Name ?? '<Unknown>',
       },
       ...staticColumns,
     ],
-    [importFolders],
+    [managedFolders],
   );
 
   const {
@@ -119,58 +133,61 @@ function IgnoredFilesTab() {
     rowSelection,
     selectedRows,
     setRowSelection,
-  } = useRowSelection<FileType>(files);
+  } = useRowSelection(files);
 
   return (
-    <div className="flex grow flex-col gap-y-6">
-      <div>
-        <ShokoPanel title={<Title />} options={<ItemCount count={fileCount} selected={selectedRows?.length} />}>
-          <div className="flex items-center gap-x-3">
-            <Input
-              type="text"
-              placeholder="Search..."
-              startIcon={mdiMagnify}
-              id="search"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              inputClassName="px-4 py-3"
+    <>
+      <title>Ignored Files | Shoko</title>
+      <div className="flex grow flex-col gap-y-6">
+        <div>
+          <ShokoPanel title={<Title />} options={<ItemCount count={fileCount} selected={selectedRows?.length} />}>
+            <div className="flex items-center gap-x-3">
+              <Input
+                type="text"
+                placeholder="Search..."
+                startIcon={mdiMagnify}
+                id="search"
+                value={search}
+                onChange={setSearch}
+                inputClassName="px-4 py-3"
+              />
+              <Menu
+                selectedRows={selectedRows}
+                setSelectedRows={setRowSelection}
+              />
+            </div>
+          </ShokoPanel>
+        </div>
+
+        <TransitionDiv className="flex grow overflow-y-auto rounded-lg border border-panel-border bg-panel-background p-6">
+          {filesQuery.isPending && (
+            <div className="flex grow items-center justify-center text-panel-text-primary">
+              <Icon path={mdiLoading} size={4} spin />
+            </div>
+          )}
+
+          {!filesQuery.isPending && fileCount === 0 && (
+            <div className="flex grow items-center justify-center font-semibold">No ignored file(s)!</div>
+          )}
+
+          {filesQuery.isSuccess && fileCount > 0 && (
+            <UtilitiesTable
+              count={fileCount}
+              fetchNextPage={filesQuery.fetchNextPage}
+              handleRowSelect={handleRowSelect}
+              columns={columns}
+              isFetchingNextPage={filesQuery.isFetchingNextPage}
+              rows={files}
+              rowSelection={rowSelection}
+              setRowSelection={setRowSelection}
+              setSortCriteria={setSortCriteria}
+              sortCriteria={sortCriteria}
             />
-            <Menu
-              selectedRows={selectedRows}
-              setSelectedRows={setRowSelection}
-            />
-          </div>
-        </ShokoPanel>
+          )}
+        </TransitionDiv>
       </div>
-
-      <TransitionDiv className="flex grow overflow-y-auto rounded-lg border border-panel-border bg-panel-background p-6">
-        {filesQuery.isPending && (
-          <div className="flex grow items-center justify-center text-panel-text-primary">
-            <Icon path={mdiLoading} size={4} spin />
-          </div>
-        )}
-
-        {!filesQuery.isPending && fileCount === 0 && (
-          <div className="flex grow items-center justify-center font-semibold">No ignored file(s)!</div>
-        )}
-
-        {filesQuery.isSuccess && fileCount > 0 && (
-          <UtilitiesTable
-            count={fileCount}
-            fetchNextPage={() => filesQuery.fetchNextPage()}
-            handleRowSelect={handleRowSelect}
-            columns={columns}
-            isFetchingNextPage={filesQuery.isFetchingNextPage}
-            rows={files}
-            rowSelection={rowSelection}
-            setSelectedRows={setRowSelection}
-            setSortCriteria={setSortCriteria}
-            sortCriteria={sortCriteria}
-          />
-        )}
-      </TransitionDiv>
-    </div>
+    </>
   );
-}
+};
 
 export default IgnoredFilesTab;

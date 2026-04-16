@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router';
-import { useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router';
 import { mdiFilmstrip, mdiLoading, mdiMagnify, mdiOpenInNew, mdiTelevision } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import cx from 'classnames';
@@ -13,7 +12,7 @@ import toast from '@/components/Toast';
 import { useSettingsQuery } from '@/core/react-query/settings/queries';
 import { useTmdbRefreshMutation } from '@/core/react-query/tmdb/mutations';
 import { useTmdbAutoSearchQuery, useTmdbSearchQuery } from '@/core/react-query/tmdb/queries';
-import useEventCallback from '@/hooks/useEventCallback';
+import { SeriesTypeEnum } from '@/core/types/api/series';
 
 import type { TmdbSearchResultType } from '@/core/types/api/tmdb';
 
@@ -24,9 +23,9 @@ type SearchResultRowProps = {
 };
 
 const SearchResultRow = React.memo(({ linkType, result, selectLink }: SearchResultRowProps) => {
-  const handleClick = useEventCallback(() => {
+  const handleClick = () => {
     selectLink(result.ID);
-  });
+  };
 
   return (
     <div className="flex items-center gap-x-4">
@@ -50,12 +49,12 @@ const SearchResultRow = React.memo(({ linkType, result, selectLink }: SearchResu
   );
 });
 
-const TmdbLinkSelectPanel = () => {
+const TmdbLinkSelectPanel = React.memo(({ seriesType }: { seriesType?: SeriesTypeEnum }) => {
   const { seriesId } = useParams();
 
   const [, setSearchParams] = useSearchParams();
 
-  const [linkType, setLinkType] = useState<'Show' | 'Movie'>('Show');
+  const [linkType, setLinkType] = useState<'Show' | 'Movie'>(seriesType === SeriesTypeEnum.Movie ? 'Movie' : 'Show');
   const [selectedId, setSelectedId] = useState(0);
   const [searchText, setSearchText] = useState('');
   const [debouncedSearch] = useDebounceValue(searchText, 200);
@@ -87,9 +86,9 @@ const TmdbLinkSelectPanel = () => {
     [autoSearchQuery.isLoading, refreshPending, searchQuery.isLoading],
   );
 
-  const selectLink = useEventCallback((tmdbId: number) => {
+  const selectLink = (tmdbId: number) => {
     setSelectedId(tmdbId);
-  });
+  };
 
   useEffect(() => {
     if (selectedId === 0) return;
@@ -118,7 +117,10 @@ const TmdbLinkSelectPanel = () => {
         </div>
         <div className="flex gap-x-2">
           <Button
-            className={cx('flex gap-x-2 item', linkType === 'Show' && 'text-panel-text-primary')}
+            className={cx(
+              'flex gap-x-2 transition-colors hover:text-panel-text-primary',
+              linkType === 'Show' && 'text-panel-text-primary',
+            )}
             onClick={() => setLinkType('Show')}
           >
             <Icon path={mdiTelevision} size={1} />
@@ -126,7 +128,10 @@ const TmdbLinkSelectPanel = () => {
           </Button>
           |
           <Button
-            className={cx('flex gap-x-2', linkType === 'Movie' && 'text-panel-text-primary')}
+            className={cx(
+              'flex gap-x-2 transition-colors hover:text-panel-text-primary',
+              linkType === 'Movie' && 'text-panel-text-primary',
+            )}
             onClick={() => setLinkType('Movie')}
           >
             <Icon path={mdiFilmstrip} size={1} />
@@ -139,10 +144,11 @@ const TmdbLinkSelectPanel = () => {
         id="link-search"
         type="text"
         value={searchText}
-        onChange={e => setSearchText(e.target.value)}
+        onChange={event => setSearchText(event.target.value)}
         placeholder="Enter Title or TMDB ID..."
         inputClassName="!p-4"
         startIcon={mdiMagnify}
+        autoFocus
       />
 
       <div className="relative h-96 rounded-lg border border-panel-border bg-panel-input p-4">
@@ -156,7 +162,7 @@ const TmdbLinkSelectPanel = () => {
           <div
             className={cx(
               'flex h-full flex-col gap-y-2 overflow-y-auto',
-              refreshPending && 'opacity-65 pointer-events-none',
+              refreshPending && 'pointer-events-none opacity-65',
             )}
           >
             {debouncedSearch === '' && autoSearchResults.map(result => (
@@ -187,6 +193,6 @@ const TmdbLinkSelectPanel = () => {
       </div>
     </div>
   );
-};
+});
 
 export default TmdbLinkSelectPanel;

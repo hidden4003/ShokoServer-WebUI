@@ -1,3 +1,8 @@
+import type { Layout } from 'react-grid-layout';
+
+import type { ReleaseChannelType } from '@/core/types/api/init';
+import type { ManualLinkProviderType } from '@/core/types/utilities/unrecognized-utility';
+
 export type SettingsDatabaseType = {
   MySqliteDirectory: string;
   DatabaseBackupDirectory: string;
@@ -26,7 +31,6 @@ export type SettingsAnidbType = {
 export type SettingsAnidbDownloadType = {
   DownloadCharacters: boolean;
   DownloadCreators: boolean;
-  DownloadReleaseGroups: boolean;
   DownloadRelatedAnime: boolean;
   MaxRelationDepth: number;
 };
@@ -53,7 +57,6 @@ export type SettingsAnidbUpdateType = {
   Calendar_UpdateFrequency: SettingsUpdateFrequencyType;
   Anime_UpdateFrequency: SettingsUpdateFrequencyType;
   MyList_UpdateFrequency: SettingsUpdateFrequencyType;
-  MyListStats_UpdateFrequency: SettingsUpdateFrequencyType;
   File_UpdateFrequency: SettingsUpdateFrequencyType;
   Notification_UpdateFrequency: SettingsUpdateFrequencyType;
   Notification_HandleMovedFiles: boolean;
@@ -62,9 +65,7 @@ export type SettingsAnidbUpdateType = {
 export type SettingsTraktType = {
   Enabled: boolean;
   TokenExpirationDate: string;
-  UpdateFrequency: SettingsUpdateFrequencyType;
   SyncFrequency: SettingsUpdateFrequencyType;
-  PIN: string;
   AuthToken: string;
   RefreshToken: string;
 };
@@ -256,7 +257,6 @@ export type SettingsTMDBType = {
 export const enum LanguageSource {
   AniDB = 'AniDB',
   TMDB = 'TMDB',
-  TvDB = 'TvDB',
 }
 
 export type SettingsLanguageType = {
@@ -291,7 +291,7 @@ export type SettingsLanguageType = {
   /**
    * Episode / season title source preference order.
    *
-   * @default [LanguageSource.TMDB, LanguageSource.TvDB, LanguageSource.AniDB]
+   * @default [LanguageSource.TMDB, LanguageSource.AniDB]
    */
   EpisodeTitleSourceOrder: LanguageSource[];
 
@@ -305,7 +305,7 @@ export type SettingsLanguageType = {
   /**
    * Description source preference order.
    *
-   * @default [LanguageSource.TMDB, LanguageSource.TvDB, LanguageSource.AniDB]
+   * @default [LanguageSource.TMDB, LanguageSource.AniDB]
    */
   DescriptionSourceOrder: LanguageSource[];
 };
@@ -334,6 +334,7 @@ export type PluginRenamerSettingsType = {
   EnabledRenamers: Record<string, boolean>;
   MoveOnImport: boolean;
   RenameOnImport: boolean;
+  AllowRelocationInsideDestinationOnImport: boolean;
   DefaultRenamer: string | null;
 };
 
@@ -367,29 +368,17 @@ export type SettingsServerType = {
   Plugins: PluginSettingsType;
 };
 
-type LayoutItemType = {
-  i: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  minW?: number;
-  maxW?: number;
-  minH?: number;
-  maxH?: number;
-  static?: boolean;
-  moved?: boolean;
-};
-
-export type LayoutType = Record<string, LayoutItemType[]>;
-
 export type WebUISettingsType = {
   notifications: boolean;
   settingsRevision: number;
   theme: string;
   toastPosition: 'top-right' | 'bottom-right';
-  updateChannel: 'Stable' | 'Dev';
-  layout: Record<string, LayoutType>;
+  updateChannel: ReleaseChannelType;
+  serverUpdateChannel: ReleaseChannelType;
+  layout: {
+    dashboard: Partial<Record<string, Layout>>;
+  };
+  releaseInfoProviders: ManualLinkProviderType[];
   collection: {
     view: 'poster' | 'list';
     poster: {
@@ -411,6 +400,9 @@ export type WebUISettingsType = {
     tmdb: {
       includeRestricted: boolean;
     };
+    anidb: {
+      filterDescription: boolean;
+    };
   };
   dashboard: {
     hideQueueProcessor: boolean;
@@ -418,17 +410,20 @@ export type WebUISettingsType = {
     hideRecentlyImported: boolean;
     hideCollectionStats: boolean;
     hideMediaType: boolean;
-    hideImportFolders: boolean;
+    hideManagedFolders: boolean;
     hideShokoNews: boolean;
     hideContinueWatching: boolean;
     hideNextUp: boolean;
     hideUpcomingAnime: boolean;
     hideRecommendedAnime: boolean;
     combineContinueWatching: boolean;
+    useThumbnailsForEpisodes: boolean;
     hideR18Content: boolean;
     shokoNewsPostsCount: number;
     recentlyImportedEpisodesCount: number;
     recentlyImportedSeriesCount: number;
+    recentlyImportedView: 'episodes' | 'series';
+    upcomingAnimeView: 'collection' | 'all';
   };
 };
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router';
 
 import SeriesRating from '@/components/Collection/Series/SeriesRating';
 import { formatThousand } from '@/core/util';
@@ -53,23 +54,27 @@ const SeriesUserStats = React.memo(({ series }: SeriesInfoProps) => (
       <div className="font-semibold">Missing</div>
       {(series.Sizes.Missing.Episodes > 0 || series.Sizes.Missing.Specials > 0)
         ? (
-          <div className="flex flex-row gap-x-1 font-normal">
+          <div className="flex gap-x-1">
             {series.Sizes.Missing.Episodes > 0 && (
-              <>
-                <span>{formatThousand(series.Sizes.Missing.Episodes)}</span>
-                <span>
-                  {series.Sizes.Missing.Episodes !== 1 ? 'Episodes' : 'Episode'}
-                </span>
-              </>
+              <Link
+                to="episodes?type=Episode&includeMissing=only&includeUnaired=false"
+                className="text-panel-text-primary"
+              >
+                {formatThousand(series.Sizes.Missing.Episodes)}
+                &nbsp;
+                {series.Sizes.Missing.Episodes !== 1 ? 'Episodes' : 'Episode'}
+              </Link>
             )}
             {series.Sizes.Missing.Episodes > 0 && series.Sizes.Missing.Specials > 0 && <span>|</span>}
             {series.Sizes.Missing.Specials > 0 && (
-              <>
-                <span>{formatThousand(series.Sizes.Missing.Specials)}</span>
-                <span>
-                  {series.Sizes.Missing.Specials !== 1 ? 'Specials' : 'Special'}
-                </span>
-              </>
+              <Link
+                to="episodes?type=Special&includeMissing=only&includeUnaired=false"
+                className="text-panel-text-primary"
+              >
+                {formatThousand(series.Sizes.Missing.Specials)}
+                &nbsp;
+                {series.Sizes.Missing.Specials !== 1 ? 'Specials' : 'Special'}
+              </Link>
             )}
           </div>
         )
@@ -77,7 +82,7 @@ const SeriesUserStats = React.memo(({ series }: SeriesInfoProps) => (
     </div>
 
     <div className="flex items-center justify-between">
-      <div className="font-semibold ">
+      <div className="font-semibold">
         Series Rating&nbsp;
         {series.UserRating?.Type === 'Temporary' && '(Temp)'}
       </div>

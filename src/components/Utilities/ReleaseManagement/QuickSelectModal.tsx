@@ -1,34 +1,53 @@
-import React, { useEffect } from 'react';
-import { map, toNumber } from 'lodash';
+import React, { useEffect, useMemo } from 'react';
+import { forEach, map, toNumber } from 'lodash';
 import { useImmer } from 'use-immer';
 
 import Button from '@/components/Input/Button';
 import Checkbox from '@/components/Input/Checkbox';
 import ModalPanel from '@/components/Panels/ModalPanel';
 import toast from '@/components/Toast';
-import { useDeleteFilesMutation } from '@/core/react-query/file/mutations';
+import { useDeleteFileLocationsMutation, useDeleteFilesMutation } from '@/core/react-query/file/mutations';
+import { useManagedFoldersQuery } from '@/core/react-query/managed-folder/queries';
+import { resetQueries } from '@/core/react-query/queryClient';
 import { useSeriesFileSummaryQuery } from '@/core/react-query/webui/queries';
-import useEventCallback from '@/hooks/useEventCallback';
+
+import type { ReleaseManagementItemType } from '@/core/react-query/release-management/types';
+import type { ManagedFolderType } from '@/core/types/api/managed-folder';
 
 type Props = {
   show: boolean;
   onClose: () => void;
   seriesId: number;
+  type: ReleaseManagementItemType;
 };
 
-const QuickSelectModal = ({ onClose, seriesId, show }: Props) => {
+const QuickSelectModal = ({ onClose, seriesId, show, type }: Props) => {
   const fileSummaryQuery = useSeriesFileSummaryQuery(
     seriesId,
     {
-      groupBy:
-        'GroupName,FileSource,FileVersion,ImportFolder,VideoCodecs,VideoResolution,AudioLanguages,SubtitleLanguages,VideoHasChapters',
+      groupBy: type === 'MultipleReleases'
+        ? 'GroupName,FileSource,FileVersion,ManagedFolder,VideoCodecs,VideoResolution,AudioLanguages,SubtitleLanguages,VideoHasChapters'
+        : 'ManagedFolder,FileLocation,MultipleLocations',
       includeEpisodeDetails: true,
+      includeLocationDetails: type === 'DuplicateFiles',
     },
     show,
   );
   const fileSummary = fileSummaryQuery.data;
 
-  const { isPending: isDeleting, mutate: deleteFiles } = useDeleteFilesMutation();
+  const managedFoldersQuery = useManagedFoldersQuery();
+  const managedFolders = useMemo<Record<number, ManagedFolderType>>(() => {
+    const result = {};
+
+    forEach(managedFoldersQuery.data, (folder) => {
+      result[folder.ID] = folder;
+    });
+
+    return result;
+  }, [managedFoldersQuery.data]);
+
+  const { isPending: isDeletingFiles, mutate: deleteFiles } = useDeleteFilesMutation();
+  const { isPending: isDeletingLocations, mutate: deleteLocations } = useDeleteFileLocationsMutation();
 
   const [groupsToDelete, setGroupsToDelete] = useImmer<Set<number>>(new Set());
 
@@ -36,115 +55,175 @@ const QuickSelectModal = ({ onClose, seriesId, show }: Props) => {
     setGroupsToDelete(new Set());
   }, [setGroupsToDelete, show]);
 
-  const handleCheckboxChange = useEventCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const index = toNumber(event.target.id.split('-')[1]);
     setGroupsToDelete((state) => {
       if (event.target.checked) state.add(index);
       else state.delete(index);
     });
-  });
+  };
 
-  const handleConfirm = useEventCallback(() => {
-    const fileIds = map(
+  const handleConfirm = () => {
+    if (type === 'MultipleReleases') {
+      const fileIds = map(
+        [...groupsToDelete],
+        groupIndex =>
+          map(
+            fileSummary?.Groups[groupIndex].Episodes,
+            episode => episode.FileID,
+          ),
+      ).flat();
+
+      deleteFiles(
+        { fileIds, removeFolder: true },
+        {
+          onSuccess: () => {
+            resetQueries(['release-management']);
+            toast.success(`${fileIds.length} ${fileIds.length === 1 ? 'file' : 'files'} deleted!`);
+            onClose();
+          },
+          onError: () => toast.error('Files could not be deleted!'),
+        },
+      );
+
+      return;
+    }
+
+    const locationIds = map(
       [...groupsToDelete],
       groupIndex =>
         map(
-          fileSummary?.Groups[groupIndex].Episodes,
-          episode => episode.FileID,
+          fileSummary?.Groups[groupIndex].Locations,
+          location => location.ID,
         ),
     ).flat();
 
-    deleteFiles(
-      { fileIds, removeFolder: true },
+    deleteLocations(
+      { locationIds, removeFolder: true },
       {
         onSuccess: () => {
-          toast.success(`${fileIds.length} ${fileIds.length === 1 ? 'file' : 'files'} deleted!`);
+          resetQueries(['release-management']);
+          toast.success(
+            `${locationIds.length} ${locationIds.length === 1 ? 'duplicate file' : 'duplicate files'} deleted!`,
+          );
           onClose();
         },
-        onError: () => toast.error('Files could not be deleted!'),
+        onError: () => toast.error('Duplicate files could not be deleted!'),
       },
     );
-  });
+  };
 
   return (
     <ModalPanel show={show} onRequestClose={onClose} header="Quick Select" size="sm">
       {fileSummaryQuery.isSuccess && (
         map(
           fileSummary?.Groups,
-          (group, index) => (
-            <div key={`group-${index}`} className="flex items-center justify-between gap-x-3">
-              <div className="flex flex-col gap-y-1">
-                <div className="font-semibold">
-                  {group.GroupName === 'None' ? 'Manual link' : group.GroupName}
-                  &nbsp;-&nbsp;
-                  {group.Episodes?.length}
-                  &nbsp;Episodes
-                  {group.RangeByType.Normal && (
+          (group, index) => {
+            const managedFolder = managedFolders[group.ManagedFolder!];
+
+            return (
+              <div key={`group-${index}`} className="flex items-center justify-between gap-x-3">
+                <div className="flex flex-col gap-y-1">
+                  {type === 'DuplicateFiles' && (
                     <>
-                      &nbsp;(
-                      {group.RangeByType.Normal.Range}
-                      )
-                    </>
-                  )}
-                  &nbsp;-&nbsp;
-                  {`v${group.FileVersion}`}
-                </div>
-                <div className="flex flex-wrap text-sm opacity-65">
-                  Import Folder:&nbsp;
-                  {group.ImportFolder}
-                </div>
-                <div className="flex flex-wrap text-sm opacity-65">
-                  {group.FileSource}
-                  &nbsp;|&nbsp;
-                  {group.VideoCodecs?.toUpperCase()}
-                  &nbsp;|&nbsp;
-                  {group.VideoResolution}
-                  {group.AudioLanguages && (
-                    <>
-                      &nbsp;|&nbsp;
-                      <div>
-                        {group.AudioLanguages.length === 0 ? 'No Audio' : (
+                      <div className="font-semibold">
+                        Managed Folder:&nbsp;
+                        {`${managedFolder.Name} (ID: ${managedFolder.ID})`}
+                      </div>
+                      <div className="flex flex-wrap text-sm break-all opacity-65">
+                        Location:&nbsp;
+                        {group.FileLocation?.replace(managedFolder.Path, '')}
+                      </div>
+                      <div className="flex flex-wrap text-sm opacity-65">
+                        {group.Episodes?.length}
+                        &nbsp;Episodes
+                        {group.RangeByType.Episode && (
                           <>
-                            {group.AudioLanguages.length > 1 ? 'Multi ' : 'Single '}
-                            Audio (
-                            {group.AudioLanguages.join(', ')}
+                            &nbsp;(
+                            {group.RangeByType.Episode.Range}
                             )
                           </>
                         )}
                       </div>
                     </>
                   )}
-                  {group.SubtitleLanguages && (
+
+                  {type === 'MultipleReleases' && (
                     <>
-                      &nbsp;|&nbsp;
-                      <div>
-                        {group.SubtitleLanguages.length === 0 ? 'No Subs' : (
+                      <div className="font-semibold">
+                        {group.GroupName === 'None' ? 'Manual link' : group.GroupName}
+                        &nbsp;-&nbsp;
+                        {group.Episodes?.length}
+                        &nbsp;Episodes
+                        {group.RangeByType.Episode && (
                           <>
-                            {group.SubtitleLanguages.length > 1 ? 'Multi ' : 'Single '}
-                            Subs (
-                            {group.SubtitleLanguages.join(', ')}
+                            &nbsp;(
+                            {group.RangeByType.Episode.Range}
                             )
+                          </>
+                        )}
+                        &nbsp;-&nbsp;
+                        {`v${group.FileVersion}`}
+                      </div>
+                      <div className="flex flex-wrap text-sm opacity-65">
+                        Managed Folder:&nbsp;
+                        {`${managedFolder.Name} (ID: ${managedFolder.ID})`}
+                      </div>
+                      <div className="flex flex-wrap text-sm opacity-65">
+                        {group.FileSource}
+                        &nbsp;|&nbsp;
+                        {group.VideoCodecs?.toUpperCase()}
+                        &nbsp;|&nbsp;
+                        {group.VideoResolution}
+                        {group.AudioLanguages && (
+                          <>
+                            &nbsp;|&nbsp;
+                            <div>
+                              {group.AudioLanguages.length === 0 ? 'No Audio' : (
+                                <>
+                                  {group.AudioLanguages.length > 1 ? 'Multi ' : 'Single '}
+                                  Audio (
+                                  {group.AudioLanguages.join(', ')}
+                                  )
+                                </>
+                              )}
+                            </div>
+                          </>
+                        )}
+                        {group.SubtitleLanguages && (
+                          <>
+                            &nbsp;|&nbsp;
+                            <div>
+                              {group.SubtitleLanguages.length === 0 ? 'No Subs' : (
+                                <>
+                                  {group.SubtitleLanguages.length > 1 ? 'Multi ' : 'Single '}
+                                  Subs (
+                                  {group.SubtitleLanguages.join(', ')}
+                                  )
+                                </>
+                              )}
+                            </div>
+                          </>
+                        )}
+                        {group.VideoHasChapters && (
+                          <>
+                            &nbsp;|&nbsp;
+                            <div>Chaptered</div>
                           </>
                         )}
                       </div>
                     </>
                   )}
-                  {group.VideoHasChapters && (
-                    <>
-                      &nbsp;|&nbsp;
-                      <div>Chaptered</div>
-                    </>
-                  )}
                 </div>
+                <Checkbox
+                  id={`checkbox-${index}`}
+                  isChecked={groupsToDelete.has(index)}
+                  onChange={handleCheckboxChange}
+                  label="Delete"
+                />
               </div>
-              <Checkbox
-                id={`checkbox-${index}`}
-                isChecked={groupsToDelete.has(index)}
-                onChange={handleCheckboxChange}
-                label="Delete"
-              />
-            </div>
-          ),
+            );
+          },
         )
       )}
 
@@ -154,7 +233,7 @@ const QuickSelectModal = ({ onClose, seriesId, show }: Props) => {
           onClick={handleConfirm}
           buttonType="primary"
           className="px-6 py-2"
-          loading={isDeleting}
+          loading={isDeletingFiles || isDeletingLocations}
         >
           Confirm
         </Button>

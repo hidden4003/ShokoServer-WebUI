@@ -32,17 +32,5 @@ export type GroupSizesSeriesTypesType = {
   Web: number;
   Movie: number;
   OVA: number;
-};
-
-export type CollectionFilterType = {
-  IDs: {
-    ParentFilter: number | null;
-    ID: number;
-  };
-  IsLocked: boolean;
-  ApplyAtSeriesLevel: boolean;
-  IsDirectory: boolean;
-  IsHidden: boolean;
-  Name: string;
-  Size: number;
+  MusicVideo: number;
 };

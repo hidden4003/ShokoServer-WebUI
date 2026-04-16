@@ -7,7 +7,6 @@ import cx from 'classnames';
 import { useCreateGroupMutation, usePatchGroupMutation } from '@/core/react-query/group/mutations';
 import { useGroupQuery, useGroupSeriesQuery } from '@/core/react-query/group/queries';
 import { invalidateQueries } from '@/core/react-query/queryClient';
-import useEventCallback from '@/hooks/useEventCallback';
 
 type Props = {
   groupId: number;
@@ -27,21 +26,24 @@ const SeriesTab = React.memo(({ groupId }: Props) => {
     isSuccess: seriesSuccess,
   } = useGroupSeriesQuery(groupId);
 
-  const sortedSeriesData = useMemo(() => seriesData?.sort((a, b) => (a.IDs.ID > b.IDs.ID ? 1 : -1)), [seriesData]);
+  const sortedSeriesData = useMemo(
+    () => seriesData?.sort((seriesA, seriesB) => (seriesA.IDs.ID > seriesB.IDs.ID ? 1 : -1)),
+    [seriesData],
+  );
 
   const { mutate: moveToNewGroupMutation } = useCreateGroupMutation();
   const { mutate: setGroupMainSeriesMutation } = usePatchGroupMutation();
 
-  const moveSeriesToNewGroup = useEventCallback((seriesId: number) => {
+  const moveSeriesToNewGroup = (seriesId: number) => {
     moveToNewGroupMutation(seriesId, {
       onSuccess: () => {
         invalidateQueries(['group', groupId]);
         invalidateQueries(['group-series', groupId]);
       },
     });
-  });
+  };
 
-  const setMainSeries = useEventCallback((seriesId: number) => {
+  const setMainSeries = (seriesId: number) => {
     if (groupData!.IDs.MainSeries !== seriesId) {
       setGroupMainSeriesMutation({
         groupId,
@@ -54,14 +56,14 @@ const SeriesTab = React.memo(({ groupId }: Props) => {
         },
       });
     }
-  });
+  };
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex overflow-y-auto rounded-lg border border-panel-border bg-panel-input p-6">
         <div
           className={cx(
-            'shoko-scrollbar flex grow flex-col gap-y-2 overflow-y-auto bg-panel-input',
+            'flex grow flex-col gap-y-2 overflow-y-auto bg-panel-input',
             (seriesSuccess && seriesData.length > 9) && 'pr-4',
           )}
         >
@@ -98,7 +100,7 @@ const SeriesTab = React.memo(({ groupId }: Props) => {
                 <div
                   className={cx(
                     'shrink-0',
-                    isMainSeries ? 'text-panel-icon-warning opacity-65' : 'text-panel-icon-action cursor-pointer',
+                    isMainSeries ? 'text-panel-icon-warning opacity-65' : 'cursor-pointer text-panel-icon-action',
                   )}
                   {...mainSeriesTooltip}
                   onClick={() => setMainSeries(series.IDs.ID)}

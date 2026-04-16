@@ -1,14 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { mdiCircleEditOutline, mdiMinusCircleOutline } from '@mdi/js';
 import { Icon } from '@mdi/react';
 
 import MultiValueCriteriaModal from '@/components/Collection/Filter/MultiValueCriteriaModal';
 import TagCriteriaModal from '@/components/Collection/Filter/TagCriteriaModal';
 import { removeFilterCriteria, selectFilterMatch } from '@/core/slices/collection';
-import useEventCallback from '@/hooks/useEventCallback';
+import { useDispatch, useSelector } from '@/core/store';
 
-import type { RootState } from '@/core/store';
 import type { FilterExpression } from '@/core/types/api/filter';
 
 type ModalType = 'tag' | 'multivalue';
@@ -31,7 +29,7 @@ const getModalComponent = (type: ModalType) => {
 };
 
 const ParameterList = ({ expression, value }: { expression: string, value: string }) => {
-  const filterMatch = useSelector((state: RootState) => selectFilterMatch(state, expression));
+  const filterMatch = useSelector(state => selectFilterMatch(state, expression));
 
   return (
     <div className="line-clamp-2">
@@ -45,17 +43,17 @@ const Criteria = ({ criteria, parameterExists, transformedParameter, type }: Pro
   const dispatch = useDispatch();
   const [showModal, setShowModal] = useState(false);
 
-  const openModal = useEventCallback(() => {
+  const openModal = () => {
     setShowModal(true);
-  });
+  };
 
-  const closeModal = useEventCallback(() => {
+  const closeModal = () => {
     setShowModal(false);
-  });
+  };
 
-  const removeCriteria = useEventCallback(() => {
+  const removeCriteria = () => {
     dispatch(removeFilterCriteria(criteria));
-  });
+  };
 
   useEffect(() => {
     if (parameterExists) return;
@@ -73,10 +71,24 @@ const Criteria = ({ criteria, parameterExists, transformedParameter, type }: Pro
           </div>
           <div className="flex gap-x-2">
             <div onClick={openModal}>
-              <Icon className="cursor-pointer text-panel-text-primary" path={mdiCircleEditOutline} size={1} />
+              <Icon
+                className="cursor-pointer text-panel-text-primary"
+                path={mdiCircleEditOutline}
+                size={1}
+                data-tooltip-id="tooltip"
+                data-tooltip-content="Edit Criteria"
+                data-tooltip-delay-show={500}
+              />
             </div>
             <div onClick={removeCriteria}>
-              <Icon className="cursor-pointer text-panel-icon-danger" path={mdiMinusCircleOutline} size={1} />
+              <Icon
+                className="cursor-pointer text-panel-icon-danger"
+                path={mdiMinusCircleOutline}
+                size={1}
+                data-tooltip-id="tooltip"
+                data-tooltip-content="Remove Criteria"
+                data-tooltip-delay-show={500}
+              />
             </div>
           </div>
         </div>

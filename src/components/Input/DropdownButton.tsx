@@ -4,10 +4,8 @@ import { mdiChevronDown, mdiLoading } from '@mdi/js';
 import Icon from '@mdi/react';
 import cx from 'classnames';
 
-import useEventCallback from '@/hooks/useEventCallback';
-
 type Props = {
-  buttonTypes?: 'primary' | 'secondary' | 'danger';
+  buttonType?: 'primary' | 'secondary' | 'danger';
   className?: string;
   children: React.ReactNode;
   content: React.ReactNode | string;
@@ -17,15 +15,18 @@ type Props = {
   tooltip?: string;
 };
 
-const buttonTypeClasses = {
-  primary: 'bg-button-primary text-button-primary-text border-2 !border-button-primary-border rounded-lg',
-  secondary: 'bg-button-secondary text-button-secondary-text border-2 !border-button-secondary-border rounded-lg',
-  danger: 'bg-button-danger text-button-danger-text border-2 !border-button-danger-border rounded-lg',
+const buttonTypeClassMap = {
+  primary:
+    'bg-button-primary bg-button-primary-hover text-button-primary-text border-2 !border-button-primary-border rounded-lg',
+  secondary:
+    'bg-button-secondary bg-button-primary-hover text-button-secondary-text border-2 !border-button-secondary-border rounded-lg',
+  danger:
+    'bg-button-danger bg-button-danger-hover text-button-danger-text border-2 !border-button-danger-border rounded-lg',
 };
 
 const DropdownButton = (props: Props) => {
   const {
-    buttonTypes,
+    buttonType,
     children,
     className,
     content,
@@ -36,9 +37,9 @@ const DropdownButton = (props: Props) => {
   } = props;
 
   const [open, setOpen] = useState(false);
-  const onClick = useEventCallback(() => {
+  const onClick = () => {
     setOpen(prev => !prev);
-  });
+  };
   const [containerRef, containerBounds] = useMeasure();
   const [menuRef, menuBounds] = useMeasure();
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -67,11 +68,9 @@ const DropdownButton = (props: Props) => {
         type="button"
         title={tooltip}
         className={cx([
-          `${className} button rounded font-semibold transition ease-in-out focus:shadow-none focus:outline-none min-w-full px-4 py-3`,
-          buttonTypes !== undefined
-          && `${buttonTypeClasses[buttonTypes ?? 'secondary']} hover:bg-button-${
-            buttonTypes ?? 'secondary'
-          }-hover border border-panel-border`,
+          className,
+          'min-w-full rounded-sm px-4 py-3 font-semibold transition ease-in-out focus:shadow-none focus:outline-hidden',
+          buttonType !== undefined && `${buttonTypeClassMap[buttonType]} border border-panel-border`,
           loading && 'cursor-default',
           disabled && 'cursor-default opacity-65',
         ])}
@@ -93,9 +92,9 @@ const DropdownButton = (props: Props) => {
       </button>
       <div
         className={cx([
-          'flex-col fixed z-10 origin-top-right text-right overflow-hidden justify-center w-fit-content p-3 gap-y-2',
+          'fixed z-10 w-fit origin-top-right flex-col justify-center gap-y-2 overflow-hidden p-3 text-right',
           open ? 'flex' : 'hidden',
-          buttonTypes !== undefined && `${buttonTypeClasses[buttonTypes]} border border-panel-border`,
+          buttonType !== undefined && `${buttonTypeClassMap[buttonType]} border border-panel-border`,
         ])}
         style={{ left: isOutOfBounds ? `${menuShift}px` : `${containerBounds.left}px` }}
         ref={menuRef}

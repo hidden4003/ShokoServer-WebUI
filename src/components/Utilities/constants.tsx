@@ -6,19 +6,19 @@ import { dayjs } from '@/core/util';
 
 import type { EpisodeType } from '@/core/types/api/episode';
 import type { FileType } from '@/core/types/api/file';
-import type { SeriesType, SeriesWithMultipleReleasesType } from '@/core/types/api/series';
+import type { ReleaseManagementSeriesType, SeriesType } from '@/core/types/api/series';
 
-export type UtilityHeaderType<T extends EpisodeType | FileType | SeriesType | SeriesWithMultipleReleasesType> = {
+export type UtilityHeaderType<T extends EpisodeType | FileType | SeriesType | ReleaseManagementSeriesType> = {
   id: string;
   name: string;
   className: string;
   item: (_: T) => React.ReactNode;
 };
 
-export type MultipleFileOptionsType = Record<number, 'keep' | 'variation' | 'delete'>;
+export type ReleaseManagementOptionsType = Record<number, 'keep' | 'variation' | 'delete'>;
 
 export const criteriaMap = {
-  importFolder: FileSortCriteriaEnum.ImportFolderName,
+  managedFolder: FileSortCriteriaEnum.ManagedFolderName,
   filename: FileSortCriteriaEnum.FileName,
   crc32: FileSortCriteriaEnum.CRC32,
   size: FileSortCriteriaEnum.FileSize,
@@ -56,7 +56,7 @@ export const staticColumns: UtilityHeaderType<FileType>[] = [
     id: 'crc32',
     name: 'CRC32',
     className: 'w-32',
-    item: file => file.Hashes.CRC32,
+    item: file => file.Hashes.find(hash => hash.Type === 'CRC32')?.Value,
   },
   {
     id: 'size',

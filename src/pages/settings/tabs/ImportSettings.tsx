@@ -1,13 +1,28 @@
 import React from 'react';
+import { mdiFolderPlusOutline } from '@mdi/js';
+import Icon from '@mdi/react';
 import { produce } from 'immer';
 
+import Button from '@/components/Input/Button';
 import Checkbox from '@/components/Input/Checkbox';
 import InputSmall from '@/components/Input/InputSmall';
-import useEventCallback from '@/hooks/useEventCallback';
+import ManagedFolder from '@/components/Settings/ManagedFolder';
+import { useManagedFoldersQuery } from '@/core/react-query/managed-folder/queries';
+import { setStatus } from '@/core/slices/modals/managedFolder';
+import { useDispatch } from '@/core/store';
 import useSettingsContext from '@/hooks/useSettingsContext';
 
-function ImportSettings() {
+import type { ManagedFolderType } from '@/core/types/api/managed-folder';
+
+const ImportSettings = () => {
+  const dispatch = useDispatch();
   const { newSettings, updateSetting } = useSettingsContext();
+  const managedFolderQuery = useManagedFoldersQuery();
+  const managedFolders = managedFolderQuery?.data ?? [] as ManagedFolderType[];
+
+  const handleAddButton = () => {
+    dispatch(setStatus(true));
+  };
 
   const {
     AutomaticallyDeleteDuplicatesOnImport,
@@ -17,20 +32,25 @@ function ImportSettings() {
   } = newSettings.Import;
 
   const {
+    AllowRelocationInsideDestinationOnImport,
     MoveOnImport,
     RenameOnImport,
   } = newSettings.Plugins.Renamer;
 
-  const handleRenamerSettingChange = useEventCallback((type: 'MoveOnImport' | 'RenameOnImport', value: boolean) => {
+  const handleRenamerSettingChange = (
+    type: 'MoveOnImport' | 'RenameOnImport' | 'AllowRelocationInsideDestinationOnImport',
+    value: boolean,
+  ) => {
     const renamerSettings = produce(newSettings.Plugins.Renamer, settings => ({
       ...settings,
       [type]: value,
     }));
     updateSetting('Plugins', 'Renamer', renamerSettings);
-  });
+  };
 
   return (
     <>
+      <title>Settings &gt; Import | Shoko</title>
       <div className="flex flex-col gap-y-1">
         <div className="text-xl font-semibold">Import</div>
         <div>
@@ -67,6 +87,14 @@ function ImportSettings() {
           />
           <Checkbox
             justify
+            label="Allow relocation inside destination on import"
+            id="allow-relocation-inside-destination-on-import"
+            isChecked={AllowRelocationInsideDestinationOnImport}
+            onChange={event =>
+              handleRenamerSettingChange('AllowRelocationInsideDestinationOnImport', event.target.checked)}
+          />
+          <Checkbox
+            justify
             label="Delete duplicates on import"
             id="delete-duplicates-on-import"
             isChecked={AutomaticallyDeleteDuplicatesOnImport}
@@ -92,8 +120,27 @@ function ImportSettings() {
         </div>
       </div>
       <div className="border-b border-panel-border" />
+
+      <div className="mt-0.5 flex flex-col gap-y-6">
+        <div className="flex items-center justify-between">
+          <div className="font-semibold">Managed Folders</div>
+          <Button onClick={handleAddButton} tooltip="Add Folder">
+            <Icon
+              className="text-panel-icon-action"
+              path={mdiFolderPlusOutline}
+              size={0.85}
+            />
+          </Button>
+        </div>
+        <div className="flex flex-col gap-y-1">
+          {managedFolders.map((folder, index) => (
+            <ManagedFolder key={folder.ID} index={index} folder={folder} className="py-4" />
+          ))}
+        </div>
+      </div>
+      <div className="border-b border-panel-border" />
     </>
   );
-}
+};
 
 export default ImportSettings;

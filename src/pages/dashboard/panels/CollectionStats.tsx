@@ -1,26 +1,50 @@
 import React from 'react';
-import { useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import prettyBytes from 'pretty-bytes';
 
 import ShokoPanel from '@/components/Panels/ShokoPanel';
 import { useDashbordStatsQuery } from '@/core/react-query/dashboard/queries';
-
-import type { RootState } from '@/core/store';
+import { resetFilter } from '@/core/slices/collection';
+import { useDispatch, useSelector } from '@/core/store';
+import { addFilterCriteriaToStore } from '@/core/utilities/filter';
+import useNavigateVoid from '@/hooks/useNavigateVoid';
 
 const Item = (
-  { link, title, value = 0 }: { title: string, value?: string | number, link?: string },
-) => (
-  <div className="flex">
-    <div className="grow">
-      {title}
-    </div>
-    {link ? <Link to={link} className="font-semibold text-panel-text-primary">{value}</Link> : <div>{value}</div>}
-  </div>
-);
+  { filter, link, title, value = 0 }: { title: string, value?: string | number, link?: string, filter?: string },
+) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigateVoid();
+  const handleMissingFilter = (filterName: string) => {
+    dispatch(resetFilter());
+    addFilterCriteriaToStore(filterName).then(() => {
+      navigate('/webui/collection/filter/live');
+    }).catch(console.error);
+  };
 
-function CollectionStats() {
-  const layoutEditMode = useSelector((state: RootState) => state.mainpage.layoutEditMode);
+  return (
+    <div className="flex">
+      <div className="grow">
+        {title}
+      </div>
+      {/* eslint-disable-next-line no-nested-ternary */}
+      {link
+        ? <Link to={link} className="font-semibold text-panel-text-primary">{value}</Link>
+        : filter
+        ? (
+          <div
+            className="cursor-pointer font-semibold text-panel-text-primary"
+            onClick={() => handleMissingFilter(filter)}
+          >
+            {value}
+          </div>
+        )
+        : <div>{value}</div>}
+    </div>
+  );
+};
+
+const CollectionStats = () => {
+  const layoutEditMode = useSelector(state => state.mainpage.layoutEditMode);
 
   const statsQuery = useDashbordStatsQuery();
 
@@ -34,12 +58,17 @@ function CollectionStats() {
     <Item
       key="collection-size"
       title="Collection Size"
-      value={`${prettyBytes(statsQuery.data?.FileSize ?? 0, { binary: true })}`}
+      value={prettyBytes(statsQuery.data?.FileSize ?? 0, { binary: true })}
     />,
-    <Item key="files" title="Files" value={statsQuery.data?.FileCount} />,
+    <Item
+      key="files"
+      title="Files"
+      value={statsQuery.data?.FileCount}
+      link="/webui/utilities/file-search"
+    />,
     <Item
       key="unrecognized-files"
-      title="Unknown Files"
+      title="Unrecognized Files"
       value={statsQuery.data?.UnrecognizedFiles}
       link="/webui/utilities/unrecognized"
     />,
@@ -47,19 +76,35 @@ function CollectionStats() {
       key="multiple-files"
       title="Duplicate Episodes"
       value={statsQuery.data?.EpisodesWithMultipleFiles}
-      link="/webui/utilities/release-management"
+      link="/webui/utilities/release-management/MultipleReleases"
     />,
-    <Item key="duplicate-files" title="Duplicate Hashes" value={statsQuery.data?.FilesWithDuplicateLocations} />,
+    <Item
+      key="duplicate-files"
+      title="Duplicate Hashes"
+      value={statsQuery.data?.FilesWithDuplicateLocations}
+      link="/webui/utilities/release-management/DuplicateFiles"
+    />,
   ];
 
   const childrenThird = [
-    <Item key="missing-links" title="Missing TvDB/TMDB Links" value={statsQuery.data?.SeriesWithMissingLinks} />,
+    <Item
+      key="missing-links"
+      title="Missing TMDB Links"
+      value={statsQuery.data?.SeriesWithMissingLinks}
+      filter="MissingTmdbLink"
+    />,
     <Item
       key="missing-episodes-collecting"
       title="Missing Episodes (Collecting)"
       value={statsQuery.data?.MissingEpisodesCollecting}
+      link="/webui/utilities/release-management/MissingEpisodes?onlyCollecting=true"
     />,
-    <Item key="missing-episodes" title="Missing Episodes (Total)" value={statsQuery.data?.MissingEpisodes} />,
+    <Item
+      key="missing-episodes"
+      title="Missing Episodes (Total)"
+      value={statsQuery.data?.MissingEpisodes}
+      link="/webui/utilities/release-management/MissingEpisodes"
+    />,
   ];
 
   return (
@@ -80,6 +125,6 @@ function CollectionStats() {
       </div>
     </ShokoPanel>
   );
-}
+};
 
 export default CollectionStats;

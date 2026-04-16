@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import React, { useMemo, useState } from 'react';
 import { mdiLoading, mdiMinusCircleOutline, mdiPlusCircleOutline } from '@mdi/js';
 import { Icon } from '@mdi/react';
@@ -127,9 +126,7 @@ const CollectionSettings = () => {
     },
   };
 
-  function isExclusionKey(id: string): id is keyof typeof exclusionMapping {
-    return id in exclusionMapping;
-  }
+  const isExclusionKey = (id: string): id is keyof typeof exclusionMapping => id in exclusionMapping;
 
   const handleExclusionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!(event.target.id in exclusionMapping)) return;
@@ -150,6 +147,7 @@ const CollectionSettings = () => {
 
   return (
     <>
+      <title>Settings &gt; Collection | Shoko</title>
       <div className="flex flex-col gap-y-1">
         <div className="text-xl font-semibold">Collection</div>
         <div>

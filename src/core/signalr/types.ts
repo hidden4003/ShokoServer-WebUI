@@ -166,6 +166,9 @@ export const enum AVDumpEventTypeEnum {
 }
 
 export type SeriesUpdateEventType = {
-  ShokoGroupIDs: number[];
   ShokoSeriesIDs: number[];
+};
+
+export type RestartRequiredType = {
+  RequiresRestart: boolean;
 };

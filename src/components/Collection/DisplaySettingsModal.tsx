@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
 import { produce } from 'immer';
 
 import Button from '@/components/Input/Button';
@@ -7,7 +6,7 @@ import Checkbox from '@/components/Input/Checkbox';
 import ModalPanel from '@/components/Panels/ModalPanel';
 import { usePatchSettingsMutation } from '@/core/react-query/settings/mutations';
 import { useSettingsQuery } from '@/core/react-query/settings/queries';
-import useEventCallback from '@/hooks/useEventCallback';
+import { useDispatch } from '@/core/store';
 
 type Props = {
   show: boolean;
@@ -26,26 +25,31 @@ const DisplaySettingsModal = ({ onClose, show }: Props) => {
     setNewSettings(settings);
   }, [dispatch, settings]);
 
-  const { image: imageSettings, list: listSettings, poster: posterSettings } = newSettings.WebUI_Settings.collection;
+  const {
+    anidb: anidbSettings,
+    image: imageSettings,
+    list: listSettings,
+    poster: posterSettings,
+  } = newSettings.WebUI_Settings.collection;
 
-  const handleSettingChange = useEventCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSettingChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const [type, key] = event.target.id.split('-') as [type: 'poster' | 'list' | 'image', key: string];
     const tempSettings = produce(newSettings, (draftState) => {
       draftState.WebUI_Settings.collection[type][key] = event.target.checked;
     });
     setNewSettings(tempSettings);
-  });
+  };
 
-  const handleSave = useEventCallback(() => {
-    patchSettings({ newSettings }, {
+  const handleSave = () => {
+    patchSettings(newSettings, {
       onSuccess: () => onClose(),
     });
-  });
+  };
 
-  const handleCancel = useEventCallback(() => {
+  const handleCancel = () => {
     setNewSettings(settings);
     onClose();
-  });
+  };
 
   return (
     <ModalPanel
@@ -56,7 +60,7 @@ const DisplaySettingsModal = ({ onClose, show }: Props) => {
       noPadding
       noGap
     >
-      <div className="flex flex-col gap-y-6 p-6">
+      <div className="flex max-h-96 flex-col gap-y-6 overflow-y-auto p-6">
         <div className="flex flex-col gap-y-4">
           <div className="font-semibold">Poster View Options</div>
           <div className="flex flex-col gap-y-1">
@@ -76,7 +80,7 @@ const DisplaySettingsModal = ({ onClose, show }: Props) => {
             />
             <Checkbox
               justify
-              label="Unwatched Epsiode Count"
+              label="Unwatched Episode Count"
               id="poster-showUnwatchedCount"
               isChecked={posterSettings.showUnwatchedCount}
               onChange={handleSettingChange}
@@ -144,6 +148,21 @@ const DisplaySettingsModal = ({ onClose, show }: Props) => {
               label="Show Backdrop if Thumbnail is missing"
               id="image-useThumbnailFallback"
               isChecked={imageSettings.useThumbnailFallback}
+              onChange={handleSettingChange}
+            />
+          </div>
+        </div>
+
+        <div className="border-b border-panel-border" />
+
+        <div className="flex flex-col gap-y-4">
+          <div className="font-semibold">AniDB Options</div>
+          <div className="flex flex-col gap-1">
+            <Checkbox
+              justify
+              label="Filter AniDB descriptions"
+              id="anidb-filterDescription"
+              isChecked={anidbSettings.filterDescription}
               onChange={handleSettingChange}
             />
           </div>

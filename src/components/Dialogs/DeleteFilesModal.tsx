@@ -4,7 +4,6 @@ import Icon from '@mdi/react';
 
 import Button from '@/components/Input/Button';
 import ModalPanel from '@/components/Panels/ModalPanel';
-import useEventCallback from '@/hooks/useEventCallback';
 
 import type { FileType } from '@/core/types/api/file';
 
@@ -27,13 +26,13 @@ const Title = ({ fileCount }: { fileCount: number }) => (
   </div>
 );
 
-function DeleteFilesModal(props: Props) {
+const DeleteFilesModal = (props: Props) => {
   const { onClose, onConfirm, removeFile, selectedFiles, show: showModal } = props;
 
-  const handleConfirm = useEventCallback(() => {
+  const handleConfirm = () => {
     onClose();
     onConfirm();
-  });
+  };
 
   const fileList = useMemo(
     () =>
@@ -90,6 +89,6 @@ function DeleteFilesModal(props: Props) {
       </div>
     </ModalPanel>
   );
-}
+};
 
 export default DeleteFilesModal;

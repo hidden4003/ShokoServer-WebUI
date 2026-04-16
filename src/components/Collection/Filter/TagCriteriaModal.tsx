@@ -1,5 +1,4 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { mdiChevronRight, mdiMagnify, mdiMinusCircleOutline, mdiTagOffOutline, mdiTagOutline } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -11,7 +10,7 @@ import Input from '@/components/Input/Input';
 import ModalPanel from '@/components/Panels/ModalPanel';
 import { useAniDBTagsQuery, useUserTagsQuery } from '@/core/react-query/tag/queries';
 import { selectFilterTags, setFilterTag } from '@/core/slices/collection';
-import useEventCallback from '@/hooks/useEventCallback';
+import { useDispatch, useSelector } from '@/core/store';
 
 import type { FilterExpression, FilterTag } from '@/core/types/api/filter';
 import type { TagType } from '@/core/types/api/tags';
@@ -43,7 +42,7 @@ const TagList = (
       >
         <div className="absolute top-0 w-full" style={{ height: virtualizer.getTotalSize() }}>
           <div
-            className="absolute left-0 top-0 w-full"
+            className="absolute top-0 left-0 w-full"
             style={{ transform: `translateY(${virtualItems[0]?.start ?? 0}px)` }}
           >
             {virtualItems.map((virtualRow) => {
@@ -62,10 +61,20 @@ const TagList = (
                         className="cursor-pointer text-panel-icon-important"
                         path={mdiTagOutline}
                         size={1}
+                        data-tooltip-id="tooltip"
+                        data-tooltip-content="Include Tag"
+                        data-tooltip-delay-show={500}
                       />
                     </div>
                     <div onClick={selectTag(item.Name, true)}>
-                      <Icon className="cursor-pointer text-panel-icon-danger" path={mdiTagOffOutline} size={1} />
+                      <Icon
+                        className="cursor-pointer text-panel-icon-danger"
+                        path={mdiTagOffOutline}
+                        size={1}
+                        data-tooltip-id="tooltip"
+                        data-tooltip-content="Exclude Tag"
+                        data-tooltip-delay-show={500}
+                      />
                     </div>
                   </div>
                 </div>
@@ -100,7 +109,7 @@ const TagCriteriaModal = ({ criteria, onClose, removeCriteria, show }: Props) =>
         tags,
         (item: TagType) =>
           findIndex(selectedValues, { Name: item.Name }) === -1 && findIndex(unsavedValues, { Name: item.Name }) === -1
-          && (search === '' ? true : item.Name.indexOf(search) !== -1),
+          && (search === '' ? true : item.Name.includes(search)),
       ),
     [tags, search, selectedValues, unsavedValues],
   );
@@ -118,17 +127,17 @@ const TagCriteriaModal = ({ criteria, onClose, removeCriteria, show }: Props) =>
     }
   };
 
-  const handleCancel = useEventCallback(() => {
+  const handleCancel = () => {
     setUnsavedValues([]);
     if (selectedValues.length === 0) removeCriteria();
     onClose();
-  });
+  };
 
-  const handleSave = useEventCallback(() => {
+  const handleSave = () => {
     dispatch(setFilterTag({ [criteria.Expression]: [...selectedValues, ...unsavedValues] }));
     setUnsavedValues([]);
     onClose();
-  });
+  };
 
   const selectTag = (name: string, isExcluded: boolean) => () => {
     const tag = { Name: name, isExcluded };
@@ -185,7 +194,14 @@ const TagCriteriaModal = ({ criteria, onClose, removeCriteria, show }: Props) =>
                 <div className="flex justify-between pr-4 leading-tight" key={tag.Name}>
                   {tag.Name}
                   <div onClick={removeValue(tag.Name)}>
-                    <Icon className="cursor-pointer text-panel-icon-danger" path={mdiMinusCircleOutline} size={1} />
+                    <Icon
+                      className="cursor-pointer text-panel-icon-danger"
+                      path={mdiMinusCircleOutline}
+                      size={1}
+                      data-tooltip-id="tooltip"
+                      data-tooltip-content="Remove Tag"
+                      data-tooltip-delay-show={500}
+                    />
                   </div>
                 </div>
               ),

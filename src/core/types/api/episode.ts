@@ -1,4 +1,4 @@
-import type { DataSourceType, EpisodeImagesType, RatingType } from './common';
+import type { EpisodeImagesType, RatingType } from './common';
 import type { FileType } from '@/core/types/api/file';
 import type { TmdbEpisodeType, TmdbMovieType } from '@/core/types/api/tmdb';
 
@@ -23,7 +23,6 @@ export type EpisodeType = {
 export type EpisodeIDsType = {
   ID: number;
   AniDB: number;
-  TvDB: number[];
   TMDB: {
     Episode: number[];
     Movie: number[];
@@ -41,15 +40,11 @@ export type EpisodeTitleType = {
 export const enum EpisodeTypeEnum {
   Unknown = 'Unknown',
   Other = 'Other',
-  Normal = 'Normal',
+  Episode = 'Episode',
   Special = 'Special',
   Trailer = 'Trailer',
-  ThemeSong = 'ThemeSong',
-  OpeningSong = 'OpeningSong',
-  EndingSong = 'EndingSong',
+  Credits = 'Credits',
   Parody = 'Parody',
-  Interview = 'Interview',
-  Extra = 'Extra',
 }
 
 export type AniDBEpisodeType = {
@@ -63,17 +58,12 @@ export type AniDBEpisodeType = {
   Rating: RatingType;
 };
 
-export type EpisodeFilesQueryType = {
-  includeDataFrom?: DataSourceType[];
-  includeXRefs?: boolean;
-  isManuallyLinked?: boolean;
-  includeMediaInfo?: boolean;
-};
-
 export enum MatchRatingType {
   UserVerified = 'UserVerified',
+  DateAndTitleKindaMatches = 'DateAndTitleKindaMatches',
   DateAndTitleMatches = 'DateAndTitleMatches',
   DateMatches = 'DateMatches',
+  TitleKindaMatches = 'TitleKindaMatches',
   TitleMatches = 'TitleMatches',
   FirstAvailable = 'FirstAvailable',
   None = 'None',

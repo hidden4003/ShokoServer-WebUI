@@ -66,12 +66,12 @@ const AddSeriesModal = ({ onClose, show }: Props) => {
             value={searchText}
             type="text"
             placeholder="Search..."
-            onChange={e => setSearchText(e.target.value)}
+            onChange={event => setSearchText(event.target.value)}
             startIcon={mdiMagnify}
             disabled={isRefreshPending}
           />
           <div className="w-full rounded-lg border border-panel-border bg-panel-input p-4 capitalize">
-            <div className="flex h-60 flex-col gap-y-1 overflow-x-clip overflow-y-scroll rounded-lg bg-panel-input pr-2 ">
+            <div className="flex h-60 flex-col gap-y-1 overflow-x-clip overflow-y-scroll rounded-lg bg-panel-input pr-2">
               {searchQuery.isError || searchQuery.isFetching
                 ? (
                   <div className="flex h-full items-center justify-center">
@@ -90,7 +90,7 @@ const AddSeriesModal = ({ onClose, show }: Props) => {
                       onClick={() => createSeries(result.ID)}
                     >
                       <div className="line-clamp-1">{result.Title}</div>
-                      {result.ID === refreshParams?.anidbID
+                      {(result.ID === refreshParams?.anidbID && isRefreshPending)
                         ? (
                           <div className="text-panel-text-primary">
                             <Icon path={mdiLoading} size={0.833} spin />
@@ -103,7 +103,7 @@ const AddSeriesModal = ({ onClose, show }: Props) => {
                             rel="noopener noreferrer"
                             className="text-panel-text-primary"
                             aria-label="Open AniDB series page"
-                            onClick={e => e.stopPropagation()}
+                            onClick={event => event.stopPropagation()}
                           >
                             <Icon path={mdiOpenInNew} size={0.833} />
                           </a>

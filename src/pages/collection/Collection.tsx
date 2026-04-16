@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
-import { useParams } from 'react-router';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router';
 import cx from 'classnames';
 import { cloneDeep, toNumber } from 'lodash';
 import { useDebounceValue, useToggle } from 'usehooks-ts';
@@ -23,27 +21,27 @@ import queryClient from '@/core/react-query/queryClient';
 import { usePatchSettingsMutation } from '@/core/react-query/settings/mutations';
 import { useSettingsQuery } from '@/core/react-query/settings/queries';
 import { useGroupViewQuery } from '@/core/react-query/webui/queries';
+import { resetFilter } from '@/core/slices/collection';
+import { useDispatch, useSelector } from '@/core/store';
 import { buildFilter } from '@/core/utilities/filter';
-import useEventCallback from '@/hooks/useEventCallback';
 import useFlattenListResult from '@/hooks/useFlattenListResult';
+import useNavigateVoid from '@/hooks/useNavigateVoid';
 
-import type { RootState } from '@/core/store';
-import type { FilterCondition, FilterType, SortingCriteria } from '@/core/types/api/filter';
+import type { CreateOrUpdateFilterType, FilterCondition, SortingCriteria } from '@/core/types/api/filter';
 import type { SeriesType } from '@/core/types/api/series';
 
 const getFilter = (
   query: string,
   filterConditions: (FilterCondition | undefined)[],
   sortingCriteria?: SortingCriteria,
-  isSeriesSearch = true,
-): FilterType => {
+): CreateOrUpdateFilterType => {
   let finalCondition: FilterCondition | undefined;
   const cleanFilterConditions = filterConditions.filter(condition => !!condition);
   if (query) {
     let searchCondition: FilterCondition = {
-      Type: isSeriesSearch ? 'StringContains' : 'AnyContains',
+      Type: 'AnyContains',
       Left: {
-        Type: isSeriesSearch ? 'NameSelector' : 'NamesSelector',
+        Type: 'NamesSelector',
       },
       Parameter: query,
     };
@@ -74,7 +72,7 @@ const getFilter = (
   return (
     finalCondition
       ? {
-        ApplyAtSeriesLevel: isSeriesSearch,
+        ApplyAtSeriesLevel: true,
         Expression: finalCondition,
         Sorting: sortingCriteria ?? { Type: 'Name', IsInverted: false },
       }
@@ -82,35 +80,73 @@ const getFilter = (
   );
 };
 
-function Collection() {
+const Collection = () => {
+  const { pathname } = useLocation();
   const { filterId, groupId } = useParams();
   const isSeries = useMemo(() => !!groupId, [groupId]);
+  const isLiveFilter = useMemo(() => pathname.endsWith('/live'), [pathname]);
+
+  const dispatch = useDispatch();
+  const navigate = useNavigateVoid();
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const groupSearch = useMemo(() => searchParams.get('q') ?? '', [searchParams]);
-  const seriesSearch = useMemo(() => searchParams.get('qs') ?? '', [searchParams]);
-  const setSearch = (query: string) => {
-    if (!query) {
+  const [groupSearch, setGroupSearch] = useState(searchParams.get('q') ?? '');
+  const [seriesSearch, setSeriesSearch] = useState(searchParams.get('qs') ?? '');
+  const setSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const query = event.target.value;
+
+    if (isSeries) {
+      setSeriesSearch(query);
+    } else {
+      setGroupSearch(query);
+    }
+  };
+
+  const [debouncedGroupSearch] = useDebounceValue(groupSearch.trim(), 200);
+  const [debouncedSeriesSearch] = useDebounceValue(seriesSearch.trim(), 200);
+
+  useEffect(() => {
+    if (!debouncedGroupSearch && !debouncedSeriesSearch) {
       setSearchParams({}, { replace: true });
       return;
     }
-    setSearchParams({ [isSeries ? 'qs' : 'q']: query }, { replace: true });
-  };
-  const [debouncedGroupSearch] = useDebounceValue(groupSearch, 200);
-  const [debouncedSeriesSearch] = useDebounceValue(seriesSearch, 200);
 
-  const activeFilter = useSelector((state: RootState) => state.collection.activeFilter) as FilterCondition;
-  const filterQuery = useFilterQuery(toNumber(filterId!), !!filterId);
+    if (isSeries) {
+      setSearchParams({ qs: debouncedSeriesSearch }, { replace: true });
+    } else {
+      setSearchParams({ q: debouncedGroupSearch }, { replace: true });
+    }
+  }, [debouncedGroupSearch, debouncedSeriesSearch, isSeries, setSearchParams]);
+
+  const activeFilterFromStore = useSelector(state => state.collection.activeFilter);
+  const activeFilter = useMemo(() => {
+    if (!filterId || !activeFilterFromStore) return undefined;
+    return activeFilterFromStore;
+  }, [activeFilterFromStore, filterId]);
+  const filterQuery = useFilterQuery(toNumber(filterId!), !!filterId && !isLiveFilter);
   const groupQuery = useGroupQuery(toNumber(groupId!), isSeries);
-  const subsectionName = isSeries ? groupQuery?.data?.Name : filterId && filterQuery?.data?.Name;
 
   const settings = useSettingsQuery().data;
   const viewSetting = settings.WebUI_Settings.collection.view;
   const { showRandomPoster } = settings.WebUI_Settings.collection.image;
 
   const [mode, setMode] = useState<'poster' | 'list'>('poster');
-  const [showFilterSidebar, toggleFilterSidebar] = useToggle(false);
+  const [showFilterSidebar, toggleFilterSidebar, setShowFilterSidebar] = useToggle();
   const [timelineSeries, setTimelineSeries] = useState<SeriesType[]>([]);
+
+  const handleFilterSidebarToggle = () => {
+    if (!filterId) {
+      dispatch(resetFilter());
+      navigate('filter/live');
+      return;
+    }
+    toggleFilterSidebar();
+  };
+
+  useEffect(() => {
+    if (filterId === 'live') setShowFilterSidebar(true);
+    if (!filterId) setShowFilterSidebar(false);
+  }, [filterId, setShowFilterSidebar]);
 
   const { mutate: patchSettings } = usePatchSettingsMutation();
 
@@ -126,16 +162,17 @@ function Collection() {
         debouncedGroupSearch,
         [activeFilter, filterQuery.data?.Expression],
         filterQuery.data?.Sorting,
-        false,
       ),
     },
-    !isSeries && (!filterId || (!!filterId && filterQuery.isSuccess)),
+    !isSeries && (!filterId || isLiveFilter || (!!filterId && filterQuery.isSuccess)),
   );
   const [groups, groupsTotal] = useFlattenListResult(groupsQuery.data);
-  const lastPageIds = useMemo(
-    () => groupsQuery.data?.pages.toReversed()[0].List.map(group => group.IDs.ID) ?? [],
-    [groupsQuery.data],
-  );
+  const lastPageIds = useMemo(() => {
+    const lastPage = groupsQuery.data?.pages.at(-1);
+    if (!lastPage) return [];
+
+    return lastPage.List.map(group => group.IDs.ID);
+  }, [groupsQuery.data]);
 
   const seriesQuery = useFilteredGroupSeries(
     toNumber(groupId!),
@@ -144,7 +181,6 @@ function Collection() {
         debouncedSeriesSearch,
         [activeFilter, filterQuery.data?.Expression],
         filterQuery.data?.Sorting,
-        true,
       ),
       randomImages: showRandomPoster,
       includeDataFrom: ['AniDB', 'TMDB'],
@@ -166,6 +202,7 @@ function Collection() {
     },
     [groups, groupsTotal, isSeries, seriesQuery.data],
   );
+  const item = items[0];
 
   useEffect(() => {
     if (!isSeries || debouncedSeriesSearch || !seriesQuery.isSuccess) return;
@@ -181,7 +218,7 @@ function Collection() {
     viewSetting === 'list' && lastPageIds.length > 0,
   ).data;
 
-  const toggleMode = useEventCallback(() => {
+  const toggleMode = () => {
     if (isFetching) return;
 
     const newMode = mode === 'list' ? 'poster' : 'list';
@@ -194,57 +231,65 @@ function Collection() {
     }
     const newSettings = cloneDeep(settings);
     newSettings.WebUI_Settings.collection.view = newMode;
-    patchSettings({ newSettings });
-  });
+    patchSettings(newSettings);
+  };
 
   return (
-    <div className="flex grow flex-col gap-y-6">
-      <div className="flex items-center justify-between rounded-lg border border-panel-border bg-panel-background p-6">
-        <CollectionTitle
-          // eslint-disable-next-line no-nested-ternary
-          count={(total === 0 && isFetching) ? -1 : (isSeries ? total : groupsTotal)}
-          filterOrGroup={subsectionName}
-          filterActive={!!activeFilter}
-          searchQuery={isSeries ? seriesSearch : groupSearch}
-        />
-        <TitleOptions
-          isSeries={isSeries}
-          groupSearch={groupSearch}
-          mode={mode}
-          seriesSearch={seriesSearch}
-          setSearch={setSearch}
-          toggleFilterSidebar={toggleFilterSidebar}
-          toggleMode={toggleMode}
-        />
-      </div>
-      <div className="flex grow">
-        <CollectionView
-          groupExtras={groupExtras ?? []}
-          fetchNextPage={() => groupsQuery.fetchNextPage()}
-          isFetchingNextPage={groupsQuery.isFetchingNextPage}
-          isFetching={isFetching}
-          isSeries={isSeries}
-          isSidebarOpen={showFilterSidebar}
-          items={items}
-          mode={mode}
-          total={total}
-        />
-        <div
-          className={cx(
-            'flex items-start transition-all',
-            (!isSeries && showFilterSidebar)
-              ? 'w-[28.84rem] opacity-100 overflow-auto '
-              : 'w-0 opacity-0 overflow-hidden ',
-          )}
-        >
-          <FilterSidebar />
+    <>
+      <title>{`${isSeries ? groupQuery?.data?.Name : 'Collection'} | Shoko`}</title>
+      <div className="flex grow flex-col gap-y-6">
+        <div className="sticky -top-6 z-10 flex items-center justify-between rounded-lg border border-panel-border bg-panel-background p-6">
+          <CollectionTitle
+            // eslint-disable-next-line no-nested-ternary
+            count={(total === 0 && isFetching) ? -1 : (isSeries ? total : groupsTotal)}
+            filterName={filterQuery?.data?.Name}
+            groupName={groupQuery?.data?.Name}
+            filterActive={!!activeFilter}
+            searchQuery={isSeries ? seriesSearch : groupSearch}
+          />
+          <TitleOptions
+            groupSearch={groupSearch}
+            isSeries={isSeries}
+            item={item}
+            mode={mode}
+            seriesSearch={seriesSearch}
+            setSearch={setSearch}
+            toggleFilterSidebar={handleFilterSidebarToggle}
+            toggleMode={toggleMode}
+          />
         </div>
-        {isSeries && <TimelineSidebar series={timelineSeries} isFetching={seriesQuery.isPending} />}
+        <div className="flex grow">
+          <CollectionView
+            groupExtras={groupExtras ?? []}
+            fetchNextPage={groupsQuery.fetchNextPage}
+            isFetchingNextPage={groupsQuery.isFetchingNextPage}
+            isFetching={isFetching}
+            isSeries={isSeries}
+            isSidebarOpen={showFilterSidebar}
+            items={items}
+            mode={mode}
+            total={total}
+          />
+          <div
+            className={cx(
+              'flex items-start',
+              !isSeries && 'transition-all',
+              showFilterSidebar
+                ? 'w-md opacity-100'
+                : 'w-0 overflow-hidden opacity-0',
+            )}
+          >
+            <FilterSidebar />
+          </div>
+          {isSeries && !showFilterSidebar && (
+            <TimelineSidebar series={timelineSeries} isFetching={seriesQuery.isPending} />
+          )}
+        </div>
+        <EditSeriesModal />
+        <EditGroupModal />
       </div>
-      <EditSeriesModal />
-      <EditGroupModal />
-    </div>
+    </>
   );
-}
+};
 
 export default Collection;

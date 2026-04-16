@@ -1,27 +1,16 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React from 'react';
-import cx from 'classnames';
 
 import Button from '@/components/Input/Button';
 import Checkbox from '@/components/Input/Checkbox';
 import InputSmall from '@/components/Input/InputSmall';
 import SelectSmall from '@/components/Input/SelectSmall';
+import UpdateFrequencyValues from '@/components/Settings/UpdateFrequencyValues';
 import toast from '@/components/Toast';
 import { useAniDBTestLoginMutation } from '@/core/react-query/settings/mutations';
 import useSettingsContext from '@/hooks/useSettingsContext';
 
-const UpdateFrequencyValues = () => (
-  <>
-    <option value={1}>Never</option>
-    <option value={2}>Every 6 Hours</option>
-    <option value={3}>Every 12 Hours</option>
-    <option value={4}>Every 24 Hours</option>
-    <option value={5}>Once a Week</option>
-    <option value={6}>Once a Month</option>
-  </>
-);
-
-function AniDBSettings() {
+const AniDBSettings = () => {
   const { newSettings, updateSetting } = useSettingsContext();
   const { isPending: isAnidbLoginPending, mutate: testAniDbLogin } = useAniDBTestLoginMutation();
 
@@ -32,7 +21,6 @@ function AniDBSettings() {
     DownloadCharacters,
     DownloadCreators,
     DownloadRelatedAnime,
-    DownloadReleaseGroups,
     File_UpdateFrequency,
     HTTPServerUrl,
     MaxRelationDepth,
@@ -43,8 +31,6 @@ function AniDBSettings() {
     MyList_SetUnwatched,
     MyList_SetWatched,
     MyList_StorageState,
-    MyList_UpdateFrequency,
-    MyListStats_UpdateFrequency,
     Notification_HandleMovedFiles,
     Notification_UpdateFrequency,
     Password,
@@ -66,6 +52,7 @@ function AniDBSettings() {
 
   return (
     <>
+      <title>Settings &gt; AniDB | Shoko</title>
       <div className="flex flex-col gap-y-1">
         <div className="text-xl font-semibold">AniDB</div>
         <div>
@@ -153,24 +140,12 @@ function AniDBSettings() {
           />
           <Checkbox
             justify
-            label="Release Groups"
-            id="release-groups"
-            isChecked={DownloadReleaseGroups}
-            onChange={event => updateSetting('AniDb', 'DownloadReleaseGroups', event.target.checked)}
-          />
-          <Checkbox
-            justify
-            label="Related Anime"
+            label="Always Download Related Anime"
             id="related-anime"
             isChecked={DownloadRelatedAnime}
             onChange={event => updateSetting('AniDb', 'DownloadRelatedAnime', event.target.checked)}
           />
-          <div
-            className={cx(
-              'flex justify-between items-center transition-opacity',
-              !DownloadRelatedAnime && 'pointer-events-none opacity-65',
-            )}
-          >
+          <div className="flex items-center justify-between transition-opacity">
             Related Depth
             <InputSmall
               id="max-relation-depth"
@@ -267,7 +242,7 @@ function AniDBSettings() {
               value={Calendar_UpdateFrequency}
               onChange={event => updateSetting('AniDb', 'Calendar_UpdateFrequency', event.target.value)}
             >
-              <UpdateFrequencyValues />
+              <UpdateFrequencyValues min24Hours />
             </SelectSmall>
           </div>
           <div className="flex items-center justify-between">
@@ -277,27 +252,7 @@ function AniDBSettings() {
               value={Anime_UpdateFrequency}
               onChange={event => updateSetting('AniDb', 'Anime_UpdateFrequency', event.target.value)}
             >
-              <UpdateFrequencyValues />
-            </SelectSmall>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Sync Mylist</span>
-            <SelectSmall
-              id="sync-mylist"
-              value={MyList_UpdateFrequency}
-              onChange={event => updateSetting('AniDb', 'MyList_UpdateFrequency', event.target.value)}
-            >
-              <UpdateFrequencyValues />
-            </SelectSmall>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Get Mylist Stats</span>
-            <SelectSmall
-              id="get-mylist-stats"
-              value={MyListStats_UpdateFrequency}
-              onChange={event => updateSetting('AniDb', 'MyListStats_UpdateFrequency', event.target.value)}
-            >
-              <UpdateFrequencyValues />
+              <UpdateFrequencyValues min24Hours />
             </SelectSmall>
           </div>
           <div className="flex items-center justify-between">
@@ -332,6 +287,6 @@ function AniDBSettings() {
       <div className="border-b border-panel-border" />
     </>
   );
-}
+};
 
 export default AniDBSettings;

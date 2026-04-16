@@ -9,6 +9,8 @@ export type DashboardSeriesSummaryType = {
   Web: number;
   Other: number;
   None?: number;
+  MusicVideo?: number;
+  Unknown?: number;
 };
 
 export type DashboardStatsType = {
@@ -45,12 +47,15 @@ export type DashboardEpisodeDetailsType = {
   Watched: string | null;
   SeriesTitle: string;
   SeriesPoster: ImageType;
+  Thumbnail?: ImageType;
 };
 
 export type DashboardNewsType = {
-  link: string;
-  title: string;
-  content_text: string;
-  url: string;
-  date_published: string;
+  filename: string;
+  meta: {
+    link: string;
+    title: string;
+    quick: string;
+    date: string;
+  };
 };

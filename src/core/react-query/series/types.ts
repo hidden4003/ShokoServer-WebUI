@@ -1,19 +1,21 @@
 import type { PaginationType } from '@/core/types/api';
-import type { DataSourceType, ImageType } from '@/core/types/api/common';
+import type { DataSourceType } from '@/core/types/api/common';
 import type { EpisodeTypeEnum } from '@/core/types/api/episode';
 
+export enum IncludeOnlyFilterEnum {
+  true = 'true',
+  false = 'false',
+  only = 'only',
+}
+
 type SeriesEpisodesBaseRequestType = {
-  includeMissing?: string;
-  includeHidden?: string;
-  includeWatched?: string;
+  includeMissing?: IncludeOnlyFilterEnum;
+  includeHidden?: IncludeOnlyFilterEnum;
+  includeWatched?: IncludeOnlyFilterEnum;
+  includeUnaired?: IncludeOnlyFilterEnum;
   type?: EpisodeTypeEnum[];
   search?: string;
   fuzzy?: boolean;
-};
-
-export type ChangeSeriesImageRequestType = {
-  seriesId: number;
-  image: ImageType;
 };
 
 export type DeleteSeriesRequestType = {
@@ -35,6 +37,7 @@ export type SeriesEpisodesInfiniteRequestType =
     includeFiles?: boolean;
     includeAbsolutePaths?: boolean;
     includeMediaInfo?: boolean;
+    includeManuallyLinked?: IncludeOnlyFilterEnum;
   }
   & SeriesEpisodesBaseRequestType
   & PaginationType;
@@ -65,17 +68,10 @@ export type RefreshAniDBSeriesRequestType = {
 };
 
 export type RefreshSeriesAniDBInfoRequestType = {
-  seriesId: number;
   force?: boolean;
   cacheOnly?: boolean;
 };
 
-export type RefreshSeriesTvdbInfoRequestType = {
-  seriesId: number;
-  force?: boolean;
-};
-
 export type WatchSeriesEpisodesRequestType = {
-  seriesId: number;
   value: boolean;
 } & SeriesEpisodesBaseRequestType;

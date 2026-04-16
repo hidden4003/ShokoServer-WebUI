@@ -1,3 +1,5 @@
+import type { ReleaseChannelType } from '@/core/types/api/init';
+
 export type GroupViewRequestType = {
   GroupIDs: number[];
   TagFilter: number;
@@ -8,9 +10,10 @@ export type GroupViewRequestType = {
 export type SeriesFileSummaryRequestType = {
   groupBy?: string;
   includeEpisodeDetails?: boolean;
+  includeLocationDetails?: boolean;
 };
 
-export type WebuiUpdateCheckRequestType = {
-  channel: 'Stable' | 'Dev';
+export type UpdateCheckRequestType = {
+  channel: ReleaseChannelType;
   force: boolean;
 };

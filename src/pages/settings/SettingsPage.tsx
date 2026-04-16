@@ -1,44 +1,45 @@
 /* global globalThis */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { Outlet } from 'react-router';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router';
 import useMeasure from 'react-use-measure';
 import { mdiLoading } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import { isEqual } from 'lodash';
+import { useDebounceValue } from 'usehooks-ts';
 
 import Button from '@/components/Input/Button';
 import toast from '@/components/Toast';
 import { usePatchSettingsMutation } from '@/core/react-query/settings/mutations';
 import { useSettingsQuery } from '@/core/react-query/settings/queries';
 import { setItem as setMiscItem } from '@/core/slices/misc';
-import useEventCallback from '@/hooks/useEventCallback';
+import { useDispatch } from '@/core/store';
 
 import type { PluginRenamerSettingsType } from '@/core/types/api/settings';
 
 const items = [
   { name: 'General', path: 'general' },
   { name: 'Import', path: 'import' },
+  { name: 'Hashing & Release', path: 'hashing-release' },
   { name: 'AniDB', path: 'anidb' },
-  { name: 'Metadata Sites', path: 'metadata-sites' },
+  { name: 'TMDB', path: 'tmdb' },
   { name: 'Collection', path: 'collection' },
+  { name: 'Integrations', path: 'integrations' },
   // { name: 'Display', path: 'display' },
   { name: 'User Management', path: 'user-management' },
   // { name: 'Themes', path: 'themes' },
   { name: 'API Keys', path: 'api-keys' },
 ];
 
-function SettingsPage() {
+const SettingsPage = () => {
   const dispatch = useDispatch();
 
   const { pathname } = useLocation();
 
-  const toastId = useRef<number | string>();
+  const toastId = useRef<number | string>(undefined);
 
   const settingsQuery = useSettingsQuery();
   const settings = settingsQuery.data;
-  const { mutate: patchSettings } = usePatchSettingsMutation();
+  const { isPending: settingsPatchPending, mutate: patchSettings } = usePatchSettingsMutation();
 
   const [newSettings, setNewSettings] = useState(settings);
 
@@ -55,19 +56,29 @@ function SettingsPage() {
     },
     [newSettings, settings, settingsQuery.isSuccess],
   );
+  const [debouncedUnsavedChanges] = useDebounceValue(unsavedChanges, 100);
 
+  const isSpecialPage = useMemo(() => {
+    const path = pathname.split('/').pop();
+    if (!path) return false;
+    if (pathname.includes('settings/dynamic/')) return true;
+    return ['user-management', 'api-keys', 'hashing-release', 'dynamic'].includes(path);
+  }, [pathname]);
+
+  // Use debounced value for unsaved changes to avoid flashing the toast for certain changes
   useEffect(() => {
-    if (!unsavedChanges) {
+    if (!debouncedUnsavedChanges) {
       if (toastId.current) toast.dismiss(toastId.current);
       return;
     }
 
     toastId.current = toast.info(
-      'Unsaved Changes',
-      'Please save before leaving this page.',
+      'Unsaved Changes for Core Settings',
+      'Please save before leaving the settings.',
       { autoClose: false, position: 'top-right' },
+      true,
     );
-  }, [unsavedChanges]);
+  }, [debouncedUnsavedChanges]);
 
   useEffect(() => () => {
     if (toastId.current) toast.dismiss(toastId.current);
@@ -89,12 +100,6 @@ function SettingsPage() {
     }
   };
 
-  const isShowFooter = useMemo(() => {
-    const path = pathname.split('/').pop();
-    if (!path) return true;
-    return !['user-management', 'api-keys'].includes(path);
-  }, [pathname]);
-
   const settingContext = {
     newSettings,
     setNewSettings,
@@ -115,7 +120,7 @@ function SettingsPage() {
     }
   };
 
-  const validateAndPatchSettings = useEventCallback(() => {
+  const validateAndPatchSettings = () => {
     if (!isHttpServerUrlValid()) {
       toast.error(
         'Invalid HTTP Server URL',
@@ -134,23 +139,30 @@ function SettingsPage() {
       return;
     }
 
-    patchSettings({ newSettings });
-  });
+    patchSettings(newSettings);
+  };
+
+  const handleCancel = () => {
+    setNewSettings(settings);
+    dispatch(setMiscItem({ webuiPreviewTheme: '' }));
+  };
 
   const [containerRef, containerBounds] = useMeasure();
 
   return (
     <div className="flex min-h-full grow justify-center gap-x-6" ref={containerRef}>
-      <div className="relative top-0 z-10 flex w-[21.875rem] flex-col gap-y-4 rounded-lg border border-panel-border bg-panel-background-transparent p-6 font-semibold">
+      <div className="relative top-0 z-10 flex w-87.5 flex-col gap-y-4 rounded-lg border border-panel-border bg-panel-background-transparent p-6 font-semibold">
         <div className="sticky top-6">
-          <div className="mb-8 text-center text-xl opacity-100">Settings</div>
+          <div className="mb-8 text-center text-xl">
+            Core Settings
+          </div>
           <div className="flex flex-col items-center gap-y-2">
             {items.map(item => (
               <NavLink
                 to={item.path}
                 className={({ isActive }) => (isActive
                   ? 'w-full text-center bg-panel-menu-item-background py-2 px-2 rounded-lg text-panel-menu-item-text'
-                  : 'w-full text-center py-2 px-2 rounded-lg hover:bg-panel-menu-item-background-hover')}
+                  : 'w-full text-center py-2 px-2 rounded-lg hover:bg-panel-menu-item-background-hover transition-colors')}
                 key={item.path}
               >
                 {item.name}
@@ -159,7 +171,7 @@ function SettingsPage() {
           </div>
         </div>
       </div>
-      <div className="flex min-h-full w-[43.75rem] flex-col gap-y-6 overflow-y-visible rounded-lg border border-panel-border bg-panel-background-transparent p-6">
+      <div className="flex min-h-full w-175 flex-col gap-y-6 overflow-y-visible rounded-lg border border-panel-border bg-panel-background-transparent p-6">
         {settingsQuery.isPending
           ? (
             <div className="flex grow items-center justify-center text-panel-text-primary">
@@ -171,10 +183,10 @@ function SettingsPage() {
               <Outlet
                 context={settingContext}
               />
-              {isShowFooter && (
+              {!isSpecialPage && (
                 <div className="flex justify-end gap-x-3 font-semibold">
                   <Button
-                    onClick={() => setNewSettings(settings)}
+                    onClick={handleCancel}
                     buttonType="secondary"
                     buttonSize="normal"
                   >
@@ -184,6 +196,7 @@ function SettingsPage() {
                     onClick={validateAndPatchSettings}
                     buttonType="primary"
                     buttonSize="normal"
+                    loading={settingsPatchPending}
                     disabled={!unsavedChanges}
                   >
                     Save
@@ -194,7 +207,8 @@ function SettingsPage() {
           )}
       </div>
       <div
-        className="fixed left-0 top-0 -z-10 w-full bg-cover bg-fixed opacity-20"
+        id="settings-background"
+        className="fixed top-0 left-0 -z-10 w-full bg-cover bg-fixed opacity-20"
         // If this height feels like a hack, you figure out how to fix it
         // 3rem accounts for the top and bottom padding of the container (1.5rem each side)
         style={{
@@ -204,6 +218,6 @@ function SettingsPage() {
       />
     </div>
   );
-}
+};
 
 export default SettingsPage;

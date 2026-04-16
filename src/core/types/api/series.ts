@@ -19,35 +19,16 @@ export type SeriesType = {
   };
 };
 
-export type SeriesWithMultipleReleasesType = {
+export type ReleaseManagementSeriesType = {
   EpisodeCount: number;
 } & SeriesType;
-
-export type SeriesRelationType = {
-  IDs: SeriesRelationIDsType;
-  RelatedIDs: SeriesRelationIDsType;
-  Type: SeriesRelationTypeEnum;
-  Source: string;
-};
-
-export type SeriesRelationIDsType = {
-  Shoko: number | null;
-  AniDB: number | null;
-};
-
-export type SeriesSearchResult = SeriesType & {
-  Match: string;
-  Distance: number;
-};
 
 export type SeriesIDsType = {
   ID: number;
   ParentGroup: number;
   TopLevelGroup: number;
   AniDB: number;
-  TvDB: number[];
   MAL: number[];
-  TraktTv: number[];
   TMDB: {
     Movie: number[];
     Show: number[];
@@ -56,6 +37,7 @@ export type SeriesIDsType = {
 
 export type AniDBSeriesType = {
   ID: number;
+  ShokoID?: number;
   Type: SeriesTypeEnum;
   Restricted: boolean;
   Title: string;
@@ -75,6 +57,7 @@ export const enum SeriesTypeEnum {
   Web = 'Web',
   Movie = 'Movie',
   OVA = 'OVA',
+  MusicVideo = 'MusicVideo',
 }
 
 export const enum SeriesRelationTypeEnum {
@@ -90,11 +73,6 @@ export const enum SeriesRelationTypeEnum {
   SideStory = 'SideStory',
   Summary = 'Summary',
 }
-
-export type SeriesAniDBRecommendedForYou = {
-  Anime: AniDBSeriesType;
-  SimilarTo: number;
-};
 
 export type SeriesAniDBSearchResult = {
   ID: number;
@@ -197,7 +175,7 @@ export type SeriesRolePerson = {
 export type SeriesCast = {
   Language: string;
   Staff: SeriesRolePerson;
-  Character: SeriesRolePerson;
+  Character?: SeriesRolePerson;
   RoleName: string;
   RoleDetails: string;
 };

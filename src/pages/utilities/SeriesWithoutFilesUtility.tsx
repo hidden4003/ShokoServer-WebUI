@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import {
   mdiCloseCircleOutline,
   mdiLoading,
@@ -61,8 +61,8 @@ const columns: UtilityHeaderType<SeriesType>[] = [
           rel="noreferrer noopener"
           className="flex gap-x-1 font-semibold"
           aria-label="Open AniDB series page"
-          onClick={e =>
-            e.stopPropagation()}
+          onClick={event =>
+            event.stopPropagation()}
         >
           <div>
             (
@@ -120,12 +120,17 @@ const Menu = (props: { selectedRows: SeriesType[], setSelectedRows: Updater<Reco
           />
         </TransitionDiv>
         <TransitionDiv className="absolute flex grow gap-x-4" show={selectedRows.length !== 0}>
-          <MenuButton onClick={() => handleDeleteSeries()} icon={mdiMinusCircleOutline} name="Delete" highlight />
+          <MenuButton
+            onClick={() => handleDeleteSeries()}
+            icon={mdiMinusCircleOutline}
+            name="Delete"
+            highlightType="danger"
+          />
           <MenuButton
             onClick={() => setSelectedRows([])}
             icon={mdiCloseCircleOutline}
             name="Cancel Selection"
-            highlight
+            highlightType="primary"
           />
         </TransitionDiv>
       </div>
@@ -143,7 +148,7 @@ const Menu = (props: { selectedRows: SeriesType[], setSelectedRows: Updater<Reco
   );
 };
 
-function SeriesWithoutFilesUtility() {
+const SeriesWithoutFilesUtility = () => {
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebounceValue(search, 200);
 
@@ -155,57 +160,60 @@ function SeriesWithoutFilesUtility() {
     rowSelection,
     selectedRows,
     setRowSelection,
-  } = useRowSelection<SeriesType>(series);
+  } = useRowSelection(series);
 
   return (
-    <div className="flex grow flex-col gap-y-6">
-      <div>
-        <ShokoPanel
-          title="Series Without Files"
-          options={<ItemCount count={seriesCount} selected={selectedRows?.length} suffix="Series" />}
-        >
-          <div className="flex items-center gap-x-3">
-            <Input
-              type="text"
-              placeholder="Search..."
-              startIcon={mdiMagnify}
-              id="search"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              inputClassName="px-4 py-3"
+    <>
+      <title>Series Without Files | Shoko</title>
+      <div className="flex grow flex-col gap-y-6">
+        <div>
+          <ShokoPanel
+            title="Series Without Files"
+            options={<ItemCount count={seriesCount} selected={selectedRows?.length} suffix="Series" />}
+          >
+            <div className="flex items-center gap-x-3">
+              <Input
+                type="text"
+                placeholder="Search..."
+                startIcon={mdiMagnify}
+                id="search"
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                inputClassName="px-4 py-3"
+              />
+              <Menu selectedRows={selectedRows} setSelectedRows={setRowSelection} />
+            </div>
+          </ShokoPanel>
+        </div>
+
+        <div className="flex grow overflow-y-auto rounded-lg border border-panel-border bg-panel-background px-4 py-6">
+          {seriesQuery.isPending && (
+            <div className="flex grow items-center justify-center text-panel-text-primary">
+              <Icon path={mdiLoading} size={4} spin />
+            </div>
+          )}
+
+          {!seriesQuery.isPending && seriesCount === 0 && (
+            <div className="flex grow items-center justify-center font-semibold">No series without files!</div>
+          )}
+
+          {seriesQuery.isSuccess && seriesCount > 0 && (
+            <UtilitiesTable
+              columns={columns}
+              count={seriesCount}
+              fetchNextPage={seriesQuery.fetchNextPage}
+              handleRowSelect={handleRowSelect}
+              isFetchingNextPage={seriesQuery.isFetchingNextPage}
+              rows={series}
+              rowSelection={rowSelection}
+              setRowSelection={setRowSelection}
+              skipSort
             />
-            <Menu selectedRows={selectedRows} setSelectedRows={setRowSelection} />
-          </div>
-        </ShokoPanel>
+          )}
+        </div>
       </div>
-
-      <div className="flex grow overflow-y-auto rounded-lg border border-panel-border bg-panel-background px-4 py-6">
-        {seriesQuery.isPending && (
-          <div className="flex grow items-center justify-center text-panel-text-primary">
-            <Icon path={mdiLoading} size={4} spin />
-          </div>
-        )}
-
-        {!seriesQuery.isPending && seriesCount === 0 && (
-          <div className="flex grow items-center justify-center font-semibold">No series without files!</div>
-        )}
-
-        {seriesQuery.isSuccess && seriesCount > 0 && (
-          <UtilitiesTable
-            columns={columns}
-            count={seriesCount}
-            fetchNextPage={() => seriesQuery.fetchNextPage()}
-            handleRowSelect={handleRowSelect}
-            isFetchingNextPage={seriesQuery.isFetchingNextPage}
-            rows={series}
-            rowSelection={rowSelection}
-            setSelectedRows={setRowSelection}
-            skipSort
-          />
-        )}
-      </div>
-    </div>
+    </>
   );
-}
+};
 
 export default SeriesWithoutFilesUtility;
